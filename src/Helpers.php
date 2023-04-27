@@ -73,6 +73,16 @@ class Helpers
         return $condition ? $ifTrue : $ifFalse;
     }
 
+    // Function to map array of data to html
+    public static function map($array, $function)
+    {
+        $result = '';
+        foreach ($array as $key => $value) {
+            $result .= $function($value, $key);
+        }
+        return $result;
+    }
+
     public static function onsubmit($function)
     {
         return "event.preventDefault(); {$function}(getFormData(event.target));";
