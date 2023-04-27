@@ -2,8 +2,6 @@
 
 namespace AnzeBlaBla\Framework;
 
-use Framework\SessionState;
-
 Helpers::$instance = new Helpers();
 class Helpers
 {
