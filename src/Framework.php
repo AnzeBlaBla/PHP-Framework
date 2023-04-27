@@ -2,11 +2,6 @@
 
 namespace AnzeBlaBla\Framework;
 
-enum RenderMode {
-    case WebComponent;
-    case Raw;
-}
-
 Framework::$instance = new Framework(null, null, Helpers::$instance);
 class Framework
 {
