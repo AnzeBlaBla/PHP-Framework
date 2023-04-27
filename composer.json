@@ -5,7 +5,7 @@
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
-            "Anzeblabla\\Framework\\": "src/Framework"
+            "AnzeBlaBla\\Framework\\": "src\\Framework"
         }
     },
     "authors": [{
