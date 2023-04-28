@@ -97,6 +97,9 @@ class Component
         /* Set component state */
         $this->state = ComponentState::Rendered;
 
+        /* Handle render tree related stuff */
+        self::$lastRendered = $this->parentComponent;
+
         // If renderedComponent is string, it's raw HTML
         if (is_string($renderedComponent)) {
             if (Framework::$renderMode == RenderMode::Raw) {
