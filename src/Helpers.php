@@ -6,7 +6,7 @@ class Helpers
 {
     /* Instance for use when no framework is initialized */
     private static Helpers $instance;
-    public static function getInstance()
+    public static function getInstance(): Helpers
     {
         if (!isset(self::$instance)) {
             self::$instance = Framework::getInstance()->getHelpers();
@@ -87,7 +87,25 @@ class Helpers
 
     public static function if($condition, $ifTrue, $ifFalse = '')
     {
-        return $condition ? $ifTrue : $ifFalse;
+        if (is_callable($condition))
+        {
+            $condition = $condition();
+        }
+        if ($condition)
+        {
+            if (is_callable($ifTrue))
+            {
+                $ifTrue = $ifTrue();
+            }
+            return $ifTrue;
+        } else {
+            if (is_callable($ifFalse))
+            {
+                $ifFalse = $ifFalse();
+            }
+            return $ifFalse;
+        }
+        
     }
 
     // Function to map array of data to html
@@ -103,6 +121,11 @@ class Helpers
     public static function onsubmit($function)
     {
         return "event.preventDefault(); {$function}(getFormData(event.target));";
+    }
+
+    public static function status($status)
+    {
+        http_response_code($status);
     }
 
     public static function redirect($url)

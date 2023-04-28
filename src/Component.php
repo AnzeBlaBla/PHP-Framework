@@ -89,37 +89,43 @@ class Component
 
         /* Call render function */
         try {
-            $componentHTML = $this->renderFunction->call($this, $this->helpers);
+            $renderedComponent = $this->renderFunction->call($this, $this->helpers);
         } catch (\Exception $e) {
-            $componentHTML = "<div style='color: red;'>Error rendering component: {$e->getMessage()}</div>";
+            $renderedComponent = "<div style='color: red;'>Error rendering component: {$e->getMessage()}</div>";
         }
 
         /* Set component state */
         $this->state = ComponentState::Rendered;
 
-
-        Framework::renderFrontendDependencies(); // In case they weren't rendered yet
-
-        if (Framework::$renderMode == RenderMode::Raw) {
-            return <<<HTML
-                <!--$this->uniqueID-->
-                {$componentHTML}
-                <!--$this->uniqueID-->
-            HTML;
-        } else if (Framework::$renderMode == RenderMode::WebComponent) {
-            return <<<HTML
-            
-                <template id="template-{$this->uniqueID}">
+        // If renderedComponent is string, it's raw HTML
+        if (is_string($renderedComponent)) {
+            if (Framework::$renderMode == RenderMode::Raw) {
+                return <<<HTML
                     <!--$this->uniqueID-->
-                    {$componentHTML}
+                    {$renderedComponent}
                     <!--$this->uniqueID-->
-                </template>
-
-                <framework-component
-                    uniqueid="{$this->uniqueID}"
-                    component="{$this->componentName}"
-                ></framework-component>
-            HTML;
+                HTML;
+            } else if (Framework::$renderMode == RenderMode::WebComponent) {
+                return <<<HTML
+                
+                    <template id="template-{$this->uniqueID}">
+                        <!--$this->uniqueID-->
+                        {$renderedComponent}
+                        <!--$this->uniqueID-->
+                    </template>
+    
+                    <framework-component
+                        uniqueid="{$this->uniqueID}"
+                        component="{$this->componentName}"
+                    ></framework-component>
+                HTML;
+            }
+        } else if (is_array($renderedComponent)) {
+            // If renderedComponent is array, it's a component
+            return $renderedComponent;
+        } else {
+            // If renderedComponent is neither string nor array, it's an error
+            return "<div style='color: red;'>Error rendering component: Invalid return type</div>";
         }
     }
 

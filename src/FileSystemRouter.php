@@ -4,6 +4,19 @@ namespace AnzeBlaBla\Framework;
 
 class FileSystemRouter
 {
+    private $prefix = '';
+    public function setPrefix($prefix)
+    {
+        // make sure to start and end with /
+        if (substr($prefix, 0, 1) != '/') {
+            $prefix = '/' . $prefix;
+        }
+        if (substr($prefix, -1) != '/') {
+            $prefix .= '/';
+        }
+        $this->prefix = $prefix;
+    }
+
     public $rootPath = null;
     public $rootFilesystemPath = null;
 
@@ -17,8 +30,8 @@ class FileSystemRouter
     public function __construct($path, $framework)
     {
         // This path is relative to the root component path
-        $this->rootPath = $path;
-        $this->rootFilesystemPath = $framework->componentsRoot . $path;
+        $this->rootPath = realpath($path);
+        $this->rootFilesystemPath = $framework->componentsRoot . '/' . $path;
         $this->framework = $framework;
 
         //print_r($this->rootFilesystemPath);
@@ -38,52 +51,93 @@ class FileSystemRouter
 
     public function render()
     {
-        $routeToRender = $this->findRoute($_SERVER['REQUEST_URI']);
+        $url = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        // remove whole prefix
+        if (substr($url, 0, strlen($this->prefix)) == $this->prefix) {
+            $url = substr($url, strlen($this->prefix));
+        // Or if url is just prexix (can be without trailing slash)
+        } else if ($url == $this->prefix || $url == substr($this->prefix, 0, -1)) {
+            $url = ''; // empty string (root
+        } else {
+            return null;
+        }
+        // URL needs to start with /
+        if (substr($url, 0, 1) != '/') {
+            $url = '/' . $url;
+        }
+        
+        $queryString = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
+        parse_str($queryString, $query); // Parse query string into array
 
-        if ($routeToRender == null && $this->errorRoute != null) {
+        $routeToRender = $this->findRoute($url);
+
+        if ($routeToRender == null) {
             //echo "<h1>Printing error</h1>";
             $routeToRender = $this->errorRoute;
         }
 
-        return $routeToRender->render();
+        if ($routeToRender == null) {
+            throw new \Exception("No route found for URL: " . $url);
+        }
+        return $routeToRender->render($url, $query);
     }
 
-    public function findRoute($uri)
+    public function renderAPI()
     {
-        // split away query string
-        $parts = explode('?', $uri);
-        $uri = $parts[0];
-        $qs = $parts[1] ?? null;
+        $rendered = $this->render();
+        if ($rendered) {
+            header('Content-Type: application/json');
+            echo json_encode($rendered);
+            die;
+        }
+    }
 
-        $tryURIs = [$uri];
+    public function findRoute($url): ?Route
+    {        
+        $tryURLs = [$url];
 
-        // if doesnt end with php (and not with /), add a /index.php
-        if (substr($uri, -4) != '.php' && substr($uri, -1) != '/') {
-            $tryURIs[] = $uri . '/index.php';
+        // if ends with /, remove it
+        if (substr($url, -1) == '/') {
+            $tryURLs[] = substr($url, 0, -1);
         }
 
-        // if doesnt end with php, add a .php
-        if (substr($uri, -4) != '.php') {
-            $tryURIs[] = $uri . '.php';
-        }
-
-        // if ends with / add index.php
-        if (substr($uri, -1) == '/') {
-            $tryURIs[] = $uri . 'index.php';
+        // if does not end with /, add it
+        if (substr($url, -1) != '/') {
+            $tryURLs[] = $url . '/';
         }
 
         $matches = array();
 
-        foreach ($tryURIs as $tryURI) {
+        foreach ($tryURLs as $tryURL) {
             foreach ($this->routes as $route) {
-                if ($route->matches($tryURI)) {
+                if ($route->matches($tryURL)) {
                     $matches[] = $route;
                 }
             }
         }
 
         if (count($matches) > 1) {
-            throw new \Exception("Multiple routes match the URI: " . $uri);
+            
+            // If there is only one non-dynamic, use that one
+            /**
+             * @var Route[] $nonDynamicMatches
+             * @var Route[] $matches
+             * @param Route $route
+            */
+            
+            $nonDynamicMatches = array_values(array_filter($matches, function ($route) {
+                return !$route->isDynamic();
+            }));
+
+            /* echo "<pre>";
+            print_r($matches);
+            echo "</pre>"; */
+
+            if (count($nonDynamicMatches) == 1) {
+                return $nonDynamicMatches[0];
+            }
+
+            throw new \Exception("Multiple routes match the URL: " . $url . " (" . count($matches) . " matches)");
         }
 
         if (count($matches) == 1) {
@@ -126,4 +180,5 @@ class FileSystemRouter
 
         return $routes;
     }
+
 }

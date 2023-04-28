@@ -14,8 +14,8 @@ class Framework
 
     public static RenderMode $renderMode = RenderMode::Raw;
 
-    private $rootComponent;
-    private $helpers;
+    private Component $rootComponent;
+    private Helpers $helpers;
     public function getHelpers()
     {
         return $this->helpers;
@@ -71,13 +71,13 @@ class Framework
 
     public function render()
     {
-        echo $this->renderFrontendDependencies();
+        echo $this->renderDependenciesHTML();
 
         if ($this->rootComponent != null)
             echo $this->rootComponent->render();
     }
 
-    public static function renderFrontendDependencies()
+    public static function renderDependenciesHTML()
     {
         include_once(__DIR__ . '/frontend.php');
     }
