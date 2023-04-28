@@ -58,7 +58,7 @@ class Helpers
      */
     public function component($componentPath, $props = [], $key = null)
     {
-        $compPath = ($this->framework->componentsRoot ?? '') . $componentPath . '.php';
+        $compPath = Utils::fix_path(($this->framework->componentsRoot ?? '') . $componentPath . '.php');
         return new Component(require($compPath), $this, $props, $key);
     }
 

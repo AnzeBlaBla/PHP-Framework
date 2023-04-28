@@ -34,18 +34,13 @@ class FileSystemRouter
     public function __construct(string $path, Framework $framework)
     {
         // This path is relative to the root component path
-        $this->rootPath = realpath($path);
-        $this->rootFilesystemPath = $framework->componentsRoot . '/' . $path;
+        $this->rootPath = Utils::fix_path($path);
+        $this->rootFilesystemPath = Utils::fix_path($framework->componentsRoot . '/' . $path);
         $this->framework = $framework;
-
-        //print_r($this->rootFilesystemPath);
 
         // Recurse folder and add to routes array
         $this->routes = $this->getRoutesFromFolder($this->rootFilesystemPath);
 
-        /* echo "<pre>";
-        print_r($this->routes);
-        echo "</pre>"; */
     }
 
     /**
@@ -53,7 +48,7 @@ class FileSystemRouter
      */
     public function setErrorRoute($path)
     {
-        $this->errorRoute = new Route($path . ".php", $this);
+        $this->errorRoute = new Route(Utils::fix_path($path . ".php"), $this);
     }
 
     /**
@@ -146,10 +141,6 @@ class FileSystemRouter
             $nonDynamicMatches = array_values(array_filter($matches, function ($route) {
                 return !$route->isDynamic();
             }));
-
-            /* echo "<pre>";
-            print_r($matches);
-            echo "</pre>"; */
 
             if (count($nonDynamicMatches) == 1) {
                 return $nonDynamicMatches[0];

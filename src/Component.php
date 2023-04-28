@@ -70,6 +70,11 @@ class Component
         $this->state = ComponentState::Initialized;
     }
 
+    public function setProps($props)
+    {
+        $this->props = new Properties($props);
+    }
+
     /**
      * Render component
      * @return string|array

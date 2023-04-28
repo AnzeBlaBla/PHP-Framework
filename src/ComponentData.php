@@ -38,15 +38,6 @@ class ComponentData
     {
         $this->initState();
 
-        /* echo "<br /><br />";
-        echo "Getting $name<br />";
-        print_r($this->sessionState->{$this->uniqueID});
-        echo "<br />Component state:";
-        print_r($this->component->state);
-        echo "<br />isset:";
-        print_r(isset($this->sessionState->{$this->uniqueID}[$name]));
-        echo "<br /><br />"; */
-
         if (!isset($this->sessionState->{$this->uniqueID}[$name])) {
             return null;
         }
@@ -57,14 +48,6 @@ class ComponentData
     {
         $this->initState();
 
-        /* echo "<br /><br />";
-        echo "Updating $name to $value<br />";
-        print_r($this->sessionState->{$this->uniqueID});
-        echo "<br />Component state:";
-        print_r($this->component->state);
-        echo "<br />isset:";
-        print_r(isset($this->sessionState->{$this->uniqueID}[$name]));
-        echo "<br /><br />"; */
         // If trying to set during render (not when actually called by functions), only set if not already set
         if ($this->component->state == ComponentState::Rendering) {
             if (isset($this->sessionState->{$this->uniqueID}[$name])) {

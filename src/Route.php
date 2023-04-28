@@ -17,7 +17,10 @@ class Route
 
     public function __construct(string $path, FileSystemRouter $router)
     {
-        $this->fileSystemPath = $router->rootFilesystemPath . '/' . $path;
+        $this->fileSystemPath = Utils::fix_path($router->rootFilesystemPath . '/' . $path);
+
+        //echo "Path: " . $this->fileSystemPath . '<br>' . $router->rootFilesystemPath . '/' . $path . "<br>";
+
         $this->urlPath = Route::getURLPathFromPath($path);
         $this->router = $router;
 
@@ -62,12 +65,23 @@ class Route
         return true;
     }
 
+    private string $renderedUrl;
+    private array $renderedQuery;
+
     public function render(string $url, $query = array())
     {
+        $this->renderedUrl = $url;
+        $this->renderedQuery = $query;
+
         //echo "Rendering route: " . $this->urlPath . " for url: " . $url . "<br>";
         // Extract data from url if needed
         $urlParts = explode('/', $url);
         $routeParts = explode('/', $this->urlPath);
+
+        /**
+         * @var Component[] $layouts
+         */
+        $layouts = array(); // list of layouts that apply to this route
 
         for ($i = 0; $i < count($routeParts); $i++) {
             $routePart = $routeParts[$i];
@@ -78,7 +92,15 @@ class Route
                 $decodedURLPart = urldecode($urlPart);
                 $query[substr($routePart, 1, -1)] = $decodedURLPart; // TODO: maybe use a separate array for this
             }
+
+            // Find layout at this level
+            $layoutPath = Utils::fix_path($this->router->rootFilesystemPath . '/' . implode('/', array_slice($routeParts, 0, $i + 1)) . '/_layout.php');
+            if (file_exists($layoutPath)) {
+                $layouts[] = new Component(require($layoutPath), $this->router->framework->getHelpers());
+            }
         }
+
+        //Utils::debug_print($layouts);
 
         $component = new Component(require($this->fileSystemPath), $this->router->framework->getHelpers(), [
             'query' => $query,
@@ -86,10 +108,29 @@ class Route
             'route' => $this
         ]);
 
-        //print_r($component);
+        $renderedComponent = $component->render();
 
-        return $component->render();
+        // Go backwards through layouts and render them
+        for ($i = count($layouts) - 1; $i >= 0; $i--) {
+            $layouts[$i]->setProps([
+                'content' => $renderedComponent
+            ]);
+            $renderedComponent = $layouts[$i]->render();
+        }
+
+        return $renderedComponent;
     }
+
+    /**
+     * Rewrite this route to a new one
+     * @param string $newUrl
+     */
+    public function rewrite(string $newUrl)
+    {
+        $newRoute = new Route($newUrl, $this->router);
+        return $newRoute->render($this->renderedUrl, $this->renderedQuery);
+    }
+
 
     /* Default string conversion */
     public function __toString()
