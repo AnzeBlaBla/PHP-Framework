@@ -23,7 +23,7 @@ class Helpers
 
     // Is set when a function was called
     // This one will actually be called when rendered
-    private ?SpecialFunction $functionToBeCalled = null;
+    private ?string $functionToBeCalled = null;
     private array $functionArgs = [];
     public function __callSpecialFunction($functionID, $args)
     {

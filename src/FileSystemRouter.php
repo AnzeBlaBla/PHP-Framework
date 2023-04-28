@@ -77,7 +77,7 @@ class FileSystemRouter
             $url = '/' . $url;
         }
         
-        $queryString = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
+        $queryString = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY) ?? '';
         parse_str($queryString, $query); // Parse query string into array
 
         $routeToRender = $this->findRoute($url);
