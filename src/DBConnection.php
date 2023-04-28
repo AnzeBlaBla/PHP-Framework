@@ -5,7 +5,7 @@ namespace AnzeBlaBla\Framework;
 
 class DBConnection
 {
-    private \PDO $connection;
+    private ?\PDO $connection;
 
     /**
      * DBConnection constructor.

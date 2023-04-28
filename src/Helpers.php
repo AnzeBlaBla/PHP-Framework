@@ -2,6 +2,8 @@
 
 namespace AnzeBlaBla\Framework;
 
+use Closure;
+
 class Helpers
 {
     /* Instance for use when no framework is initialized */
@@ -62,7 +64,7 @@ class Helpers
 
     /**
      * Helper to create a function that can be called from javascript
-     * @param callable $function
+     * @param Closure $function
      * @return SpecialFunction
      */
     public function function($function)
