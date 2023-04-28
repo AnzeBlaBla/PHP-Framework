@@ -2,11 +2,17 @@
 
 namespace AnzeBlaBla\Framework;
 
-Helpers::$instance = new Helpers();
 class Helpers
 {
     /* Instance for use when no framework is initialized */
-    public static Helpers $instance;
+    private static Helpers $instance;
+    public static function getInstance()
+    {
+        if (!isset(self::$instance)) {
+            self::$instance = Framework::getInstance()->getHelpers();
+        }
+        return self::$instance;
+    }
 
     private $specialFunctions = [];
 
@@ -22,20 +28,26 @@ class Helpers
 
     public SessionState $sessionState;
     public ?DBConnection $db;
-    public $projectRoot;
+    public ?Framework $framework;
 
-    public function __construct($sessionState = null, $dbConnection = null, $projectRoot = '')
+    /**
+     * @param SessionState $sessionState
+     * @param DBConnection $dbConnection
+     * @param Framework $framework
+     */
+    public function __construct($sessionState = null, $dbConnection = null, $framework = null)
     {
         if($sessionState == null)
             $sessionState = new SessionState();
         $this->sessionState = $sessionState;
         $this->db = $dbConnection;
-        $this->projectRoot = $projectRoot;
+        $this->framework = $framework;
     }
 
     public function component($componentPath, $props = [], $key = null)
     {
-        return new Component(require($componentPath . '.php'), $this, $props, $key);
+        $compPath = ($this->framework->componentsRoot ?? '') . $componentPath . '.php';
+        return new Component(require($compPath), $this, $props, $key);
     }
 
     public function function($function)
@@ -61,6 +73,11 @@ class Helpers
         }
 
         return $newFunc;
+    }
+
+    public function fileSystemRouter($path)
+    {
+        return new FileSystemRouter($path, $this->framework);
     }
 
     public function setUID($uid)

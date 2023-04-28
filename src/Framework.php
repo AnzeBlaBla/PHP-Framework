@@ -2,27 +2,36 @@
 
 namespace AnzeBlaBla\Framework;
 
-Framework::$instance = new Framework(null, null, Helpers::$instance);
 class Framework
 {
-    public static Framework $instance;
+    private static Framework $instance;
+    public static function getInstance()
+    {
+        if (!isset(self::$instance))
+            self::$instance = new Framework();
+        return self::$instance;
+    }
 
     public static RenderMode $renderMode = RenderMode::Raw;
 
     private $rootComponent;
     private $helpers;
+    public function getHelpers()
+    {
+        return $this->helpers;
+    }
     private SessionState $sessionState;
     private ?DBConnection $dbConnection;
-    private $projectRoot;
+    public $componentsRoot;
 
     public function __construct($renderFunction = null, $dbConnection = null, $helpers = null)
     {
         $this->sessionState = new SessionState('Framework');
 
         $backtrace = debug_backtrace();
-        $this->projectRoot = dirname($backtrace[0]['file']);
+        $this->componentsRoot = dirname($backtrace[0]['file']);
         if ($helpers == null)
-            $this->helpers = new Helpers($this->sessionState, $dbConnection, $this->projectRoot);
+            $this->helpers = new Helpers($this->sessionState, $dbConnection, $this);
         else
             $this->helpers = $helpers;
 
@@ -33,6 +42,14 @@ class Framework
 
         if ($renderFunction != null)
             $this->rootComponent = new Component($renderFunction, $this->helpers);
+    }
+
+    public function setComponentRoot($root)
+    {
+        $root = realpath($root);
+        if (substr($root, -1) != '/')
+            $root .= '/';
+        $this->componentsRoot = $root;
     }
 
     private function handleRequestData()

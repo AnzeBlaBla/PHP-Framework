@@ -35,6 +35,11 @@ class Component
         $this->state = ComponentState::Updated;
     }
 
+    /**
+     * @param Closure|string $renderFunction
+     * @param Helpers $helpers
+     * @param array $props
+     */
     public function __construct($renderFunction, $helpers = null, $props = [], $key = null)
     {
         /* Set last constructed component */
@@ -50,7 +55,7 @@ class Component
 
         $fileName = $reflection->getFileName();
         $fileName = str_replace('.php', '', $fileName);
-        $fileName = str_replace($helpers->projectRoot, '', $fileName);
+        $fileName = str_replace($helpers->framework->componentsRoot, '', $fileName);
         $this->componentName = $fileName;
 
         $this->renderFunction = $renderFunction;
