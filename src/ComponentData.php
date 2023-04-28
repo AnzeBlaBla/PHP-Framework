@@ -4,17 +4,26 @@ namespace AnzeBlaBla\Framework;
 
 class ComponentData
 {
-    private $sessionState;
-    private $component;
-    private $uniqueID;
+    private SessionState $sessionState;
+    private Component $component;
+    private string $uniqueID;
 
-    public function __construct($sessionState, $component)
+    /**
+     * ComponentData constructor.
+     * @param SessionState $sessionState
+     * @param Component $component
+     */
+    public function __construct(SessionState $sessionState, Component $component)
     {
         $this->sessionState = $sessionState;
         $this->component = $component;
-        $this->uniqueID = $this->component->uniqueID;
+        $this->uniqueID = $this->component->uniqueID; // TODO: maybe don't save it here, just use it directly
     }
 
+    /**
+     * Initialize state if not already initialized
+     * @return void
+     */
     private function initState()
     {
         if (!isset($this->sessionState->{$this->uniqueID})) {
@@ -22,6 +31,9 @@ class ComponentData
         }
     }
 
+    /*
+        Magic functions
+    */
     public function __get($name)
     {
         $this->initState();

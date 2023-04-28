@@ -2,10 +2,11 @@
 
 namespace AnzeBlaBla\Framework;
 
+use Closure;
 class Framework
 {
     private static Framework $instance;
-    public static function getInstance()
+    public static function getInstance(): Framework
     {
         if (!isset(self::$instance))
             self::$instance = new Framework();
@@ -24,7 +25,7 @@ class Framework
     private ?DBConnection $dbConnection;
     public $componentsRoot;
 
-    public function __construct($renderFunction = null, $dbConnection = null, $helpers = null)
+    public function __construct(Closure $renderFunction = null, DBConnection $dbConnection = null, Helpers $helpers = null)
     {
         $this->sessionState = new SessionState('Framework');
 
@@ -44,6 +45,10 @@ class Framework
             $this->rootComponent = new Component($renderFunction, $this->helpers);
     }
 
+    /**
+     * Sets the root folder from where the framework will search for components.
+     * @param string $root
+     */
     public function setComponentRoot($root)
     {
         $root = realpath($root);
@@ -52,6 +57,9 @@ class Framework
         $this->componentsRoot = $root;
     }
 
+    /**
+     * Handles the request data and calls the appropriate functions.
+     */
     private function handleRequestData()
     {
         // Data is either raw JSON or post data where the data field is the json
@@ -69,6 +77,9 @@ class Framework
         }
     }
 
+    /**
+     * Renders the root component.
+     */
     public function render()
     {
         echo $this->renderDependenciesHTML();
@@ -77,6 +88,10 @@ class Framework
             echo $this->rootComponent->render();
     }
 
+    /**
+     * Renders the dependencies HTML.
+     * @return string
+     */
     public static function renderDependenciesHTML()
     {
         include_once(__DIR__ . '/frontend.php');

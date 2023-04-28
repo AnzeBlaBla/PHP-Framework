@@ -3,6 +3,7 @@
 namespace AnzeBlaBla\Framework;
 
 use ReflectionFunction;
+use Closure;
 
 enum ComponentState
 {
@@ -15,30 +16,32 @@ enum ComponentState
 
 class Component
 {
-    private $componentName;
-    private $renderFunction;
-    private $props;
-    private $data = null;
-    private $helpers;
-
-    public ComponentState $state = ComponentState::Uninitialized;
-
     static ?Component $lastConstructed = null;
     static ?Component $lastRendered = null;
 
-    private $parentComponent = null;
-    private $componentTreePath = [];
-    public $uniqueID = null;
+    private string $componentName;
+    private Closure $renderFunction;
+    private Properties $props;
+    private ?ComponentData $data = null;
+    private Helpers $helpers;
 
-    public function markUpdated()
+    public ComponentState $state = ComponentState::Uninitialized;
+
+    private ?Component $parentComponent = null;
+    private $componentTreePath = [];
+    public ?string $uniqueID = null;
+
+    public function markUpdated(): void
     {
         $this->state = ComponentState::Updated;
     }
 
     /**
+     * Component constructor.
      * @param Closure|string $renderFunction
      * @param Helpers $helpers
      * @param array $props
+     * @param string|null $key
      */
     public function __construct($renderFunction, $helpers = null, $props = [], $key = null)
     {
@@ -67,6 +70,10 @@ class Component
         $this->state = ComponentState::Initialized;
     }
 
+    /**
+     * Render component
+     * @return string|array
+     */
     public function render()
     {
         /* Set component state */
@@ -159,7 +166,10 @@ class Component
         $this->data->{$name} = $value;
     }
 
-    /* Debugging functions */
+    /**
+     * Debug function to get component tree location
+     * @return string
+     */
     public function treeLocation()
     {
         return implode(' > ', $this->componentTreePath);

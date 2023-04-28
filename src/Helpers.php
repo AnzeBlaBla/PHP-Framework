@@ -14,12 +14,15 @@ class Helpers
         return self::$instance;
     }
 
+    /**
+     * @var SpecialFunction[] $specialFunctions
+     */
     private $specialFunctions = [];
 
     // Is set when a function was called
     // This one will actually be called when rendered
-    private $functionToBeCalled = null;
-    private $functionArgs = [];
+    private ?SpecialFunction $functionToBeCalled = null;
+    private array $functionArgs = [];
     public function __callSpecialFunction($functionID, $args)
     {
         $this->functionToBeCalled = $functionID;
@@ -37,19 +40,31 @@ class Helpers
      */
     public function __construct($sessionState = null, $dbConnection = null, $framework = null)
     {
-        if($sessionState == null)
+        if ($sessionState == null)
             $sessionState = new SessionState();
         $this->sessionState = $sessionState;
         $this->db = $dbConnection;
         $this->framework = $framework;
     }
 
+    /**
+     * Helper to create a component
+     * @param string $componentPath
+     * @param array $props
+     * @param string|null $key
+     * @return Component
+     */
     public function component($componentPath, $props = [], $key = null)
     {
         $compPath = ($this->framework->componentsRoot ?? '') . $componentPath . '.php';
         return new Component(require($compPath), $this, $props, $key);
     }
 
+    /**
+     * Helper to create a function that can be called from javascript
+     * @param callable $function
+     * @return SpecialFunction
+     */
     public function function($function)
     {
         $ownerUniqueID = Component::$lastRendered ? Component::$lastRendered->uniqueID : 'root';
@@ -66,49 +81,55 @@ class Helpers
 
             // Mark component as updated
             Component::$lastRendered->markUpdated();
-            
-            $newFunc->call(...$args);
 
-            
+            $newFunc->call(...$args);
         }
 
         return $newFunc;
     }
 
+    /**
+     * Helper to create a file system router
+     * @param string $path
+     * @return FileSystemRouter
+     */
     public function fileSystemRouter($path)
     {
         return new FileSystemRouter($path, $this->framework);
     }
 
-    public function setUID($uid)
-    {
-        Component::$lastRendered->uniqueID = $uid;
-    }
 
+    /**
+     * Helper for if statements
+     * @param bool|callable $condition
+     * @param string|callable $ifTrue
+     * @param string|callable $ifFalse
+     * @return mixed
+     */
     public static function if($condition, $ifTrue, $ifFalse = '')
     {
-        if (is_callable($condition))
-        {
+        if (is_callable($condition)) {
             $condition = $condition();
         }
-        if ($condition)
-        {
-            if (is_callable($ifTrue))
-            {
+        if ($condition) {
+            if (is_callable($ifTrue)) {
                 $ifTrue = $ifTrue();
             }
             return $ifTrue;
         } else {
-            if (is_callable($ifFalse))
-            {
+            if (is_callable($ifFalse)) {
                 $ifFalse = $ifFalse();
             }
             return $ifFalse;
         }
-        
     }
 
-    // Function to map array of data to html
+    /**
+     * Helper for loops (maps array to string)
+     * @param array $array
+     * @param callable $function
+     * @return string
+     */
     public static function map($array, $function)
     {
         $result = '';
@@ -118,21 +139,44 @@ class Helpers
         return $result;
     }
 
-    public static function onsubmit($function)
+    /**
+     * Helper for making an onsubmit function for forms
+     * @param SpecialFunction $function
+     * @return string
+     */
+    public static function onsubmit(SpecialFunction $function)
     {
         return "event.preventDefault(); {$function}(getFormData(event.target));";
     }
 
-    public static function status($status)
+    /**
+     * Helper to set response code
+     * @param int $status
+     * @return void
+     */
+    public static function status(int $status)
     {
         http_response_code($status);
     }
 
-    public static function redirect($url)
+    /**
+     * Helper for redirection (returns a script that redirects)
+     * @param string $url
+     * @return string
+     */
+    public static function redirect(string $url, bool $includeScriptTag = true)
     {
-        echo "<script>window.location.href = '$url'; console.log('redir to $url')</script>";
+        if ($includeScriptTag)
+            echo "<script>";
+        echo "window.location.href = '$url'; console.log('redir to $url')";
+        if ($includeScriptTag)
+            echo "</script>";
     }
 
+    /**
+     * Helper for reloading the page (see redirect)
+     * @return string
+     */
     public static function reload()
     {
         return Helpers::redirect($_SERVER['REQUEST_URI']);

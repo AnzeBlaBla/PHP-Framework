@@ -2,18 +2,20 @@
 
 namespace AnzeBlaBla\Framework;
 
+use FilesystemIterator;
+
 class Route
 {
-    private $urlPath = null;
-    private $fileSystemPath = null;
+    private ?string $urlPath = null;
+    private ?string $fileSystemPath = null;
     private ?FileSystemRouter $router = null;
-    private $dynamic = false;
-    public function isDynamic()
+    private bool $dynamic = false;
+    public function isDynamic(): bool
     {
         return $this->dynamic;
     }
 
-    public function __construct($path, $router)
+    public function __construct(string $path, FileSystemRouter $router)
     {
         $this->fileSystemPath = $router->rootFilesystemPath . '/' . $path;
         $this->urlPath = Route::getURLPathFromPath($path);
@@ -29,7 +31,7 @@ class Route
         }
     }
 
-    public function matches($url)
+    public function matches(string $url)
     {
         //echo $this->urlPath . ' == ' . $url . '<br>';
         //return $this->urlPath == $url;
@@ -60,7 +62,7 @@ class Route
         return true;
     }
 
-    public function render($url, $query = array())
+    public function render(string $url, $query = array())
     {
         //echo "Rendering route: " . $this->urlPath . " for url: " . $url . "<br>";
         // Extract data from url if needed
@@ -97,7 +99,7 @@ class Route
 
 
 
-    public static function getURLPathFromPath($path)
+    public static function getURLPathFromPath(string $path): string
     {
         $urlPath = $path;
 

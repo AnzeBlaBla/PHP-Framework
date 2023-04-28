@@ -4,8 +4,8 @@ namespace AnzeBlaBla\Framework;
 
 class FileSystemRouter
 {
-    private $prefix = '';
-    public function setPrefix($prefix)
+    private string $prefix = '';
+    public function setPrefix(string $prefix)
     {
         // make sure to start and end with /
         if (substr($prefix, 0, 1) != '/') {
@@ -17,17 +17,21 @@ class FileSystemRouter
         $this->prefix = $prefix;
     }
 
-    public $rootPath = null;
-    public $rootFilesystemPath = null;
+    public ?string $rootPath = null;
+    public ?string $rootFilesystemPath = null;
 
     /**
      * @var Route[] $routes
      */
     private $routes = array();
-    private $errorRoute = null;
+    private ?Route $errorRoute = null;
     public ?Framework $framework = null;
 
-    public function __construct($path, $framework)
+    /**
+     * @param string $path
+     * @param Framework $framework
+     */
+    public function __construct(string $path, Framework $framework)
     {
         // This path is relative to the root component path
         $this->rootPath = realpath($path);
@@ -44,11 +48,18 @@ class FileSystemRouter
         echo "</pre>"; */
     }
 
+    /**
+     * @param string $path
+     */
     public function setErrorRoute($path)
     {
         $this->errorRoute = new Route($path . ".php", $this);
     }
 
+    /**
+     * Router render method
+     * @return mixed
+     */
     public function render()
     {
         $url = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -82,6 +93,9 @@ class FileSystemRouter
         return $routeToRender->render($url, $query);
     }
 
+    /**
+     * @return string
+     */
     public function renderAPI()
     {
         $rendered = $this->render();
@@ -92,6 +106,10 @@ class FileSystemRouter
         }
     }
 
+    /**
+     * @param string $url
+     * @return Route|null
+     */
     public function findRoute($url): ?Route
     {        
         $tryURLs = [$url];
@@ -154,6 +172,10 @@ class FileSystemRouter
     }
 
 
+    /**
+     * @param string $path
+     * @return Route[]
+     */
     public function getRoutesFromFolder($path)
     {
         $relativePath = substr($path, strlen($this->rootFilesystemPath));

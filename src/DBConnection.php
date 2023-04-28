@@ -5,13 +5,24 @@ namespace AnzeBlaBla\Framework;
 
 class DBConnection
 {
-    private $connection;
+    private \PDO $connection;
 
+    /**
+     * DBConnection constructor.
+     * @param string $dsn
+     * @param string $username
+     * @param string $password
+     */
     public function __construct($dsn, $username, $password)
     {
         $this->connection = new \PDO($dsn, $username, $password);
     }
 
+    /**
+     * @param string $query
+     * @param array $args
+     * @return array
+     */
     public function query($query, $args)
     {
         $statement = $this->connection->prepare($query);
@@ -19,6 +30,11 @@ class DBConnection
         return $statement->fetchAll();
     }
 
+    /**
+     * @param string $query
+     * @param array $args
+     * @return mixed
+     */
     public function queryOne($query, $args)
     {
         $statement = $this->connection->prepare($query);
@@ -26,12 +42,19 @@ class DBConnection
         return $statement->fetch();
     }
 
+    /**
+     * @param string $query
+     * @param array $args
+     */
     public function execute($query, $args)
     {
         $statement = $this->connection->prepare($query);
         $statement->execute($args);
     }
 
+    /**
+     * @return string
+     */
     public function lastInsertId()
     {
         return $this->connection->lastInsertId();

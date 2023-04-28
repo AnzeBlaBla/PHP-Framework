@@ -6,8 +6,8 @@ namespace AnzeBlaBla\Framework;
 
 class SessionState
 {
-    private $state = [];
-    private $key;
+    private array $state = [];
+    private string $key;
 
     public function __construct($key = 'DEFAULT')
     {
