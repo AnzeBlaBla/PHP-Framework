@@ -49,7 +49,7 @@ class Framework
      * Sets the root folder from where the framework will search for components.
      * @param string $root
      */
-    public function setComponentRoot($root)
+    public function setComponentsRoot($root)
     {
         $root = realpath($root);
         if (substr($root, -1) != '/')
