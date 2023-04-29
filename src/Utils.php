@@ -30,7 +30,14 @@ class Utils
     {
         foreach ($data as $d) {
             echo '<pre>';
-            print_r($d);
+            if($d == '')
+            {
+                echo "Empty string";
+            } else if (is_null($d)) {
+                echo "NULL";
+            } else {
+                print_r($d);
+            }
             echo '</pre>';
         }
     }

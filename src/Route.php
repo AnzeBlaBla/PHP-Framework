@@ -2,8 +2,6 @@
 
 namespace AnzeBlaBla\Framework;
 
-use FilesystemIterator;
-
 class Route
 {
     private ?string $urlPath = null;
@@ -15,9 +13,11 @@ class Route
         return $this->dynamic;
     }
 
+    public bool $isLayout = false; // Layouts cannot be visited directly
+
     public function __construct(string $path, FileSystemRouter $router)
     {
-        if($path == '') {
+        if ($path == '') {
             throw new \Exception('Route path cannot be empty');
         }
 
@@ -26,6 +26,11 @@ class Route
 
 
         $componentPath = Utils::fix_path($router->rootFilesystemPath . '/' . $path);
+
+        // Check if this is a layout
+        if (substr($componentPath, -strlen($router->layoutFileName)) == $router->layoutFileName) {
+            $this->isLayout = true;
+        }
         $this->component = new Component(require($componentPath), $this->router->framework->getHelpers());
 
 
@@ -41,6 +46,10 @@ class Route
 
     public function matches(string $url)
     {
+        // If it's a layout, it cannot be visited directly
+        if ($this->isLayout) {
+            return false;
+        }
         //echo $this->urlPath . ' == ' . $url . '<br>';
         //return $this->urlPath == $url;
 
@@ -73,59 +82,95 @@ class Route
     private string $renderedUrl;
     private array $renderedQuery;
 
-    public function render(string $url, $query = array())
+    public function render(string $url, $query = array(), string|array $content = null)
     {
         $this->renderedUrl = $url;
         $this->renderedQuery = $query;
 
         //echo "Rendering route: " . $this->urlPath . " for url: " . $url . "<br>";
-        // Extract data from url if needed
-        $urlParts = explode('/', $url);
-        $routeParts = explode('/', $this->urlPath);
+        
+        $queryFromURL = $this->extractDataFromURL($url);
+        $query = array_merge($query, $queryFromURL);
 
-        for ($i = 0; $i < count($routeParts); $i++) {
-            $routePart = $routeParts[$i];
-            $urlPart = $urlParts[$i];
 
-            if (substr($routePart, 0, 1) == '[' && substr($routePart, -1) == ']') {
-                // url decode
-                $decodedURLPart = urldecode($urlPart);
-                $query[substr($routePart, 1, -1)] = $decodedURLPart; // TODO: maybe use a separate array for this
-            }
-        }
-
-        //Utils::debug_print($layouts);
-
-        $this->component->setProps([
+        $props = [
             'query' => $query,
             'router' => $this->router,
             'route' => $this
-        ]);
+        ];
+ 
+        // For layouts
+        if ($content != null) {
+            $props['content'] = $content;
+        }
+
+        $this->component->setProps($props);
 
         $renderedComponent = $this->component->render();
 
-        // Only apply layouts if this route was not rewritten (otherwise it would be applied twice)
-        if (!$this->rewritten) {
+        // Apply layouts (if this is not a layout)
+        // Also don't apply if rewritten, because it's already applied in the rewritten route
+        if (!$this->isLayout && !$this->rewritten) {
             $renderedComponent = $this->applyLayouts($renderedComponent);
         }
 
         return $renderedComponent;
     }
 
-    public function getLayouts()
+    private function extractDataFromUrl($url)
     {
-        $layouts = array(); // list of layouts that apply to this route
-        $layoutFilename = $this->router->getLayoutFilename();
+        $data = array();
 
+        $urlParts = explode('/', $url);
         $routeParts = explode('/', $this->urlPath);
+
         for ($i = 0; $i < count($routeParts); $i++) {
-            // Find layout at this level
-            $layoutPath = $this->router->rootFilesystemPath . '/' . implode('/', array_slice($routeParts, 0, $i + 1)) . '/' . $layoutFilename;
-            $layoutPath = Utils::fix_path($layoutPath);
-            if (file_exists($layoutPath)) {
-                $layouts[] = new Component(require($layoutPath), $this->router->framework->getHelpers());
+            $routePart = $routeParts[$i] ?? '';
+            $urlPart = $urlParts[$i] ?? '';
+
+            if (substr($routePart, 0, 1) == '[' && substr($routePart, -1) == ']') {
+                // url decode
+                $decodedURLPart = urldecode($urlPart);
+                $data[substr($routePart, 1, -1)] = $decodedURLPart; // TODO: maybe use a separate array for this
             }
         }
+
+        return $data;
+    }
+
+    public function getLayouts()
+    {
+        /**
+         * @var Route[] $layouts
+         */
+        $layouts = array(); // list of layouts that apply to this route
+        $layoutFilename = $this->router->layoutFileName;
+
+        $routeParts = explode('/', $this->urlPath);
+
+        //Utils::debug_print($routeParts);
+        //Utils::debug_print($this->urlPath);
+
+        for ($i = 0; $i < count($routeParts); $i++) {
+            // Find layout at this level
+            $layoutRelativePath = implode('/', array_slice($routeParts, 0, $i + 1)) . '/' . $layoutFilename;
+            $layoutPath = $this->router->rootFilesystemPath . '/' . $layoutRelativePath;
+            $layoutPath = Utils::fix_path($layoutPath);
+
+            if (file_exists($layoutPath)) {
+                //$layouts[] = new Component(require($layoutPath), $this->router->framework->getHelpers());
+
+                $newLayout = new Route($layoutRelativePath, $this->router);
+                $layouts[] = $newLayout;
+            }
+        }
+
+        // If this is a layout, remove it from the list (otherwise an infinite loop would occur)
+        if ($this->isLayout) {
+            array_pop($layouts);
+        }
+
+        //Utils::debug_print($layouts);
 
         return $layouts;
     }
@@ -137,8 +182,7 @@ class Route
         // Apply layouts (backwards)
         for ($i = count($layouts) - 1; $i >= 0; $i--) {
             $layout = $layouts[$i];
-            $layout->setProps(['content' => $renderedComponent]);
-            $renderedComponent = $layout->render();
+            $renderedComponent = $layout->render($this->renderedUrl, $this->renderedQuery, $renderedComponent);
         }
 
         return $renderedComponent;
@@ -182,6 +226,16 @@ class Route
         // Remove trailing slash
         if (substr($urlPath, -1) == '/') {
             $urlPath = substr($urlPath, 0, -1);
+        }
+
+        // Add leading slash
+        if (substr($urlPath, 0, 1) != '/') {
+            $urlPath = '/' . $urlPath;
+        }
+
+        // if only /, then make it empty
+        if ($urlPath == '/') {
+            $urlPath = '';
         }
 
         return $urlPath;

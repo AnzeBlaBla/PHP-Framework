@@ -23,9 +23,10 @@ class FileSystemRouter
         $this->ignoreFilePrefix = $prefix;
     }
 
-    public function getLayoutFilename()
+    public string $layoutFileName = '#layout.php';
+    public function setLayoutFileName(string $name)
     {
-        return $this->ignoreFilePrefix . 'layout.php';
+        $this->layoutFileName = $name;
     }
 
     public ?string $rootFilesystemPath = null;
@@ -140,7 +141,7 @@ class FileSystemRouter
     {        
         $tryURLs = [$url];
 
-        // if ends with /, remove it
+        /* // if ends with /, remove it
         if (substr($url, -1) == '/') {
             $tryURLs[] = substr($url, 0, -1);
         }
@@ -148,7 +149,7 @@ class FileSystemRouter
         // if does not end with /, add it
         if (substr($url, -1) != '/') {
             $tryURLs[] = $url . '/';
-        }
+        } */
 
         $matches = array();
 
