@@ -105,16 +105,15 @@ class Component
         $this->data = new ComponentData($this->framework->sessionState, $this);
 
         /* Call render function */
-        /* try { */
+        try {
             ob_start();
             $componentReturn = require($this->fileSystemPath);
             $renderedComponent = ob_get_clean();
 
-            // TODO: use $componentReturn
             //print_r($componentReturn);
-        /* } catch (\Exception $e) {
+        } catch (\Exception $e) {
             $renderedComponent = "<div style='color: red;'>Error rendering component: {$e->getMessage()}</div>";
-        } */
+        }
 
         /* Set component state */
         $this->state = ComponentState::Rendered;
@@ -122,8 +121,10 @@ class Component
         /* Handle render tree related stuff */
         self::$lastRendered = $this->parentComponent;
 
-        // If renderedComponent is string, it's raw HTML
-        if (is_string($renderedComponent)) {
+        // If renderedComponent printed any data, consider it HTML
+        if ($renderedComponent != '') {
+            //echo "Component is string<br>";
+            //Utils::debug_print($renderedComponent);
             if (Framework::$renderMode == RenderMode::Raw) {
                 return <<<HTML
                     <!--$this->uniqueID-->
@@ -145,12 +146,15 @@ class Component
                     ></framework-component>
                 HTML;
             }
-        } else if (is_array($renderedComponent)) {
-            // If renderedComponent is array, it's a component
-            return $renderedComponent;
+        // If a component returns an object, it's data
+        } else if (is_object($componentReturn) || is_array($componentReturn)) {
+            //echo "Component is array<br>";
+            // If renderedComponent is array, return it (used for API components that return JSON)
+            return $componentReturn;
         } else {
             // If renderedComponent is neither string nor array, it's an error
-            Utils::debug_print($renderedComponent);
+            //Utils::debug_print($renderedComponent);
+            //Utils::debug_print($componentReturn);
             return "<div style='color: red;'>Error rendering component: Invalid return type</div>";
         }
     }
@@ -203,7 +207,7 @@ class Component
      */
     public function fileSystemRouter($path)
     {
-        return new FileSystemRouter($path, $this->framework);
+        return $this->framework->fileSystemRouter($path);
     }
 
     /**

@@ -56,7 +56,7 @@ class Route
         if ($this->isLayout) {
             return false;
         }
-        echo $this->urlPath . ' == ' . $url . '<br>';
+        //echo $this->urlPath . ' == ' . $url . '<br>';
         //return $this->urlPath == $url;
 
         // Split url path

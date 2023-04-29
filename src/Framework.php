@@ -3,6 +3,7 @@
 namespace AnzeBlaBla\Framework;
 
 use Closure;
+
 class Framework
 {
     private static Framework $instance;
@@ -29,18 +30,16 @@ class Framework
         $this->sessionState = new SessionState('Framework');
 
         $backtrace = debug_backtrace();
-        
+
         $this->componentsRoot = dirname($backtrace[0]['file']);
 
         $this->dbConnection = $dbConnection;
-
-
-        $this->handleRequestData();
     }
 
     /**
      * Sets the root folder from where the framework will search for components.
      * @param string $root
+     * @return \AnzeBlaBla\Framework\Framework
      */
     public function setComponentsRoot($root)
     {
@@ -48,15 +47,20 @@ class Framework
         if (substr($root, -1) != '/')
             $root .= '/';
         $this->componentsRoot = $root;
+
+        return $this;
     }
 
     /**
      * Sets the root component.
      * @param string $componentPath
+     * @return \AnzeBlaBla\Framework\Framework
      */
     public function setRootComponent(string $componentPath)
     {
         $this->rootComponent = new Component($componentPath, $this);
+
+        return $this;
     }
 
     /**
@@ -76,6 +80,18 @@ class Framework
                     //$this->helpers->__callSpecialFunction($requestData['specialFunctionID'], $requestData['args']);
                     throw new \Exception('Special functions are not implemented yet.');
                     break;
+                case 'getComponent':
+                    //Utils::debug_print('Getting component', $requestData);
+                    $component = new Component($requestData['componentPath'], $this, $requestData['props'] ?? [], $requestData['key'] ?? null);
+                    $renderedComponent = $component->render();
+                    if (is_string($renderedComponent)) {
+                        echo $renderedComponent;
+                    } else {
+                        header('Content-Type: application/json');
+                        echo json_encode($renderedComponent);
+                    }
+                    die;
+                    break;
             }
         }
     }
@@ -85,6 +101,9 @@ class Framework
      */
     public function render()
     {
+        $this->handleRequestData();
+
+
         echo $this->renderDependenciesHTML();
 
         if ($this->rootComponent != null)
@@ -100,5 +119,18 @@ class Framework
     public static function renderDependenciesHTML()
     {
         include_once(__DIR__ . '/frontend.php');
+    }
+
+
+
+    /* Helpers */
+
+    /**
+     * Creates a router
+     * @param string $path
+     */
+    public function fileSystemRouter($path)
+    {
+        return new FileSystemRouter($path, $this);
     }
 }

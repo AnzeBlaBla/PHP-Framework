@@ -15,18 +15,24 @@ class FileSystemRouter
             $prefix .= '/';
         }
         $this->prefix = $prefix;
+
+        return $this;
     }
 
     public string $ignoreFilePrefix = '_';
     public function setIgnoreFilePrefix(string $prefix)
     {
         $this->ignoreFilePrefix = $prefix;
+
+        return $this;
     }
 
     public string $layoutFileName = '#layout.php';
     public function setLayoutFileName(string $name)
     {
         $this->layoutFileName = $name;
+
+        return $this;
     }
 
     public ?string $rootFilesystemPath = null;
@@ -59,19 +65,25 @@ class FileSystemRouter
     /**
      * Sets the error route (when no other route matches)
      * @param string $path
+     * @return \AnzeBlaBla\Framework\FileSystemRouter
      */
     public function setErrorRoute($path)
     {
         $this->errorRoute = new Route($path . ".php", $this);
+
+        return $this;
     }
 
     /**
      * Sets the error component (when no other route matches - displayed inside the appropriate layouts)
      * @param string $componentPath
+     * @return \AnzeBlaBla\Framework\FileSystemRouter
      */
     public function setErrorComponent(string $componentPath)
     {
         $this->errorComponent = new Component($componentPath, $this->framework);
+
+        return $this;
     }
 
     /**
@@ -126,7 +138,7 @@ class FileSystemRouter
     /**
      * @return string
      */
-    public function renderAPI()
+    public function runAPI()
     {
         $rendered = $this->render();
         if ($rendered) {
