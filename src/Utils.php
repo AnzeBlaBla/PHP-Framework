@@ -26,10 +26,12 @@ class Utils
     }
 
 
-    public static function debug_print($data)
+    public static function debug_print(...$data)
     {
-        echo '<pre>';
-        print_r($data);
-        echo '</pre>';
+        foreach ($data as $d) {
+            echo '<pre>';
+            print_r($d);
+            echo '</pre>';
+        }
     }
 }

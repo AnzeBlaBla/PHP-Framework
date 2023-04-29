@@ -17,14 +17,25 @@ class FileSystemRouter
         $this->prefix = $prefix;
     }
 
-    public ?string $rootPath = null;
+    public string $ignoreFilePrefix = '_';
+    public function setIgnoreFilePrefix(string $prefix)
+    {
+        $this->ignoreFilePrefix = $prefix;
+    }
+
+    public function getLayoutFilename()
+    {
+        return $this->ignoreFilePrefix . 'layout.php';
+    }
+
     public ?string $rootFilesystemPath = null;
 
     /**
      * @var Route[] $routes
      */
     private $routes = array();
-    private ?Route $errorRoute = null;
+    private ?Route $errorRoute = null; // Error route is displayed when no other route matches
+    private ?Component $errorComponent = null; // Error component is displayed when no other route matches (inside the appropriate layouts)
     public ?Framework $framework = null;
 
     /**
@@ -34,7 +45,6 @@ class FileSystemRouter
     public function __construct(string $path, Framework $framework)
     {
         // This path is relative to the root component path
-        $this->rootPath = Utils::fix_path($path);
         $this->rootFilesystemPath = Utils::fix_path($framework->componentsRoot . '/' . $path);
         $this->framework = $framework;
 
@@ -44,11 +54,20 @@ class FileSystemRouter
     }
 
     /**
+     * Sets the error route (when no other route matches)
      * @param string $path
      */
     public function setErrorRoute($path)
     {
-        $this->errorRoute = new Route(Utils::fix_path($path . ".php"), $this);
+        $this->errorRoute = new Route($path . ".php", $this);
+    }
+
+    /**
+     * Sets the error component (when no other route matches - displayed inside the appropriate layouts)
+     */
+    public function setErrorComponent($component)
+    {
+        $this->errorComponent = new Component($component, $this->framework->getHelpers());
     }
 
     /**
@@ -79,12 +98,24 @@ class FileSystemRouter
 
         if ($routeToRender == null) {
             //echo "<h1>Printing error</h1>";
-            $routeToRender = $this->errorRoute;
+            //$routeToRender = $this->errorRoute;
+
+            // Both error component and error route cannot be set
+            if ($this->errorComponent != null && $this->errorRoute != null) {
+                throw new \Exception("Only use setErrorComponent or setErrorRoute, not both");
+            }
+
+            // If error component is set, use that
+            if ($this->errorComponent != null) {
+                // Render error component with the correct layouts
+                throw new \Exception("Error components not implemented yet!");
+            } else if ($this->errorRoute != null) {
+                $routeToRender = $this->errorRoute;
+            } else {
+                throw new \Exception("No route found for URL: " . $url);
+            }
         }
 
-        if ($routeToRender == null) {
-            throw new \Exception("No route found for URL: " . $url);
-        }
         return $routeToRender->render($url, $query);
     }
 
@@ -182,6 +213,11 @@ class FileSystemRouter
                 continue;
             }
 
+            // Ignore all files starting with ignoreFilePrefix
+            if (substr($file, 0, strlen($this->ignoreFilePrefix)) == $this->ignoreFilePrefix) {
+                continue;
+            }
+            
             // If it's a folder, recurse
             if (is_dir($path . "/" . $file)) {
                 $routes = array_merge($routes, $this->getRoutesFromFolder($path . "/" . $file));

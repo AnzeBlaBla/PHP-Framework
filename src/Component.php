@@ -140,6 +140,7 @@ class Component
             return $renderedComponent;
         } else {
             // If renderedComponent is neither string nor array, it's an error
+            Utils::debug_print($renderedComponent);
             return "<div style='color: red;'>Error rendering component: Invalid return type</div>";
         }
     }

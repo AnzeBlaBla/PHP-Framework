@@ -22,7 +22,8 @@ My goal was to create a tool where all the logic (frontend and backend) + styles
   - [x] Basic functionality
   - [x] Dynamic routes
   - [x] Layouts
-  - [ ] Rewrites and redirects
+  - [x] Rewrites and redirects
+- [ ] Documentation
 - [ ] Solve problem where data is kept even when you don't want it (duh, everything is stored in session) - for example when a component is rerendered
 - [ ] Only rerender components that have changed
-- [ ] Documentation
+

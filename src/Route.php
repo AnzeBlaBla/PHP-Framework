@@ -7,7 +7,7 @@ use FilesystemIterator;
 class Route
 {
     private ?string $urlPath = null;
-    private ?string $fileSystemPath = null;
+    public Component $component;
     private ?FileSystemRouter $router = null;
     private bool $dynamic = false;
     public function isDynamic(): bool
@@ -17,12 +17,17 @@ class Route
 
     public function __construct(string $path, FileSystemRouter $router)
     {
-        $this->fileSystemPath = Utils::fix_path($router->rootFilesystemPath . '/' . $path);
-
-        //echo "Path: " . $this->fileSystemPath . '<br>' . $router->rootFilesystemPath . '/' . $path . "<br>";
+        if($path == '') {
+            throw new \Exception('Route path cannot be empty');
+        }
 
         $this->urlPath = Route::getURLPathFromPath($path);
         $this->router = $router;
+
+
+        $componentPath = Utils::fix_path($router->rootFilesystemPath . '/' . $path);
+        $this->component = new Component(require($componentPath), $this->router->framework->getHelpers());
+
 
         // Decide if this is dynamic route (contains [ and ] in one of the url parts)
         $urlParts = explode('/', $this->urlPath);
@@ -78,11 +83,6 @@ class Route
         $urlParts = explode('/', $url);
         $routeParts = explode('/', $this->urlPath);
 
-        /**
-         * @var Component[] $layouts
-         */
-        $layouts = array(); // list of layouts that apply to this route
-
         for ($i = 0; $i < count($routeParts); $i++) {
             $routePart = $routeParts[$i];
             $urlPart = $urlParts[$i];
@@ -92,35 +92,59 @@ class Route
                 $decodedURLPart = urldecode($urlPart);
                 $query[substr($routePart, 1, -1)] = $decodedURLPart; // TODO: maybe use a separate array for this
             }
-
-            // Find layout at this level
-            $layoutPath = Utils::fix_path($this->router->rootFilesystemPath . '/' . implode('/', array_slice($routeParts, 0, $i + 1)) . '/_layout.php');
-            if (file_exists($layoutPath)) {
-                $layouts[] = new Component(require($layoutPath), $this->router->framework->getHelpers());
-            }
         }
 
         //Utils::debug_print($layouts);
 
-        $component = new Component(require($this->fileSystemPath), $this->router->framework->getHelpers(), [
+        $this->component->setProps([
             'query' => $query,
             'router' => $this->router,
             'route' => $this
         ]);
 
-        $renderedComponent = $component->render();
+        $renderedComponent = $this->component->render();
 
-        // Go backwards through layouts and render them
-        for ($i = count($layouts) - 1; $i >= 0; $i--) {
-            $layouts[$i]->setProps([
-                'content' => $renderedComponent
-            ]);
-            $renderedComponent = $layouts[$i]->render();
+        // Only apply layouts if this route was not rewritten (otherwise it would be applied twice)
+        if (!$this->rewritten) {
+            $renderedComponent = $this->applyLayouts($renderedComponent);
         }
 
         return $renderedComponent;
     }
 
+    public function getLayouts()
+    {
+        $layouts = array(); // list of layouts that apply to this route
+        $layoutFilename = $this->router->getLayoutFilename();
+
+        $routeParts = explode('/', $this->urlPath);
+        for ($i = 0; $i < count($routeParts); $i++) {
+            // Find layout at this level
+            $layoutPath = $this->router->rootFilesystemPath . '/' . implode('/', array_slice($routeParts, 0, $i + 1)) . '/' . $layoutFilename;
+            $layoutPath = Utils::fix_path($layoutPath);
+            if (file_exists($layoutPath)) {
+                $layouts[] = new Component(require($layoutPath), $this->router->framework->getHelpers());
+            }
+        }
+
+        return $layouts;
+    }
+
+    public function applyLayouts(string|array $renderedComponent)
+    {
+        $layouts = $this->getLayouts();
+
+        // Apply layouts (backwards)
+        for ($i = count($layouts) - 1; $i >= 0; $i--) {
+            $layout = $layouts[$i];
+            $layout->setProps(['content' => $renderedComponent]);
+            $renderedComponent = $layout->render();
+        }
+
+        return $renderedComponent;
+    }
+
+    private bool $rewritten = false;
     /**
      * Rewrite this route to a new one
      * @param string $newUrl
@@ -128,6 +152,7 @@ class Route
     public function rewrite(string $newUrl)
     {
         $newRoute = new Route($newUrl, $this->router);
+        $this->rewritten = true;
         return $newRoute->render($this->renderedUrl, $this->renderedQuery);
     }
 
@@ -145,8 +170,7 @@ class Route
         $urlPath = $path;
 
         // Remove .php extension
-        if (substr($urlPath, -4) == '.php')
-        {
+        if (substr($urlPath, -4) == '.php') {
             $urlPath = substr($urlPath, 0, -4);
         }
 
