@@ -25,13 +25,19 @@ class Route
         $this->router = $router;
 
 
-        $componentPath = Utils::fix_path($router->rootFilesystemPath . '/' . $path);
-
+        $componentPath = $router->componentsRootPath . '/' . $path;
         // Check if this is a layout
         if (substr($componentPath, -strlen($router->layoutFileName)) == $router->layoutFileName) {
             $this->isLayout = true;
         }
-        $this->component = new Component(require($componentPath), $this->router->framework->getHelpers());
+        
+        // Remove php
+        if (substr($componentPath, -4) == '.php') {
+            $componentPath = substr($componentPath, 0, -4);
+        }
+
+        
+        $this->component = new Component($componentPath, $this->router->framework);
 
 
         // Decide if this is dynamic route (contains [ and ] in one of the url parts)
@@ -50,7 +56,7 @@ class Route
         if ($this->isLayout) {
             return false;
         }
-        //echo $this->urlPath . ' == ' . $url . '<br>';
+        echo $this->urlPath . ' == ' . $url . '<br>';
         //return $this->urlPath == $url;
 
         // Split url path
@@ -146,7 +152,15 @@ class Route
         $layouts = array(); // list of layouts that apply to this route
         $layoutFilename = $this->router->layoutFileName;
 
+        // Split url path
+        // "/" is an exception
         $routeParts = explode('/', $this->urlPath);
+
+        // If last is empty, remove it
+        // (to avoid a case where "/" equals ['', ''] and that renders the root layout twice)
+        if (count($routeParts) > 0 && $routeParts[count($routeParts) - 1] == '') {
+            array_pop($routeParts);
+        }
 
         //Utils::debug_print($routeParts);
         //Utils::debug_print($this->urlPath);
@@ -158,8 +172,6 @@ class Route
             $layoutPath = Utils::fix_path($layoutPath);
 
             if (file_exists($layoutPath)) {
-                //$layouts[] = new Component(require($layoutPath), $this->router->framework->getHelpers());
-
                 $newLayout = new Route($layoutRelativePath, $this->router);
                 $layouts[] = $newLayout;
             }
@@ -233,10 +245,10 @@ class Route
             $urlPath = '/' . $urlPath;
         }
 
-        // if only /, then make it empty
+        /* // if only /, then make it empty
         if ($urlPath == '/') {
             $urlPath = '';
-        }
+        } */
 
         return $urlPath;
     }

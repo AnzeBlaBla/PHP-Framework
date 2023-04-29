@@ -6,16 +6,6 @@ use Closure;
 
 class Helpers
 {
-    /* Instance for use when no framework is initialized */
-    private static Helpers $instance;
-    public static function getInstance(): Helpers
-    {
-        if (!isset(self::$instance)) {
-            self::$instance = Framework::getInstance()->getHelpers();
-        }
-        return self::$instance;
-    }
-
     /**
      * @var SpecialFunction[] $specialFunctions
      */

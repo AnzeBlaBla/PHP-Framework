@@ -16,33 +16,26 @@ class Framework
     public static RenderMode $renderMode = RenderMode::Raw;
 
     private Component $rootComponent;
-    private Helpers $helpers;
-    public function getHelpers()
-    {
-        return $this->helpers;
-    }
-    private SessionState $sessionState;
+    public SessionState $sessionState;
     private ?DBConnection $dbConnection;
     public $componentsRoot;
 
-    public function __construct(Closure $renderFunction = null, DBConnection $dbConnection = null, Helpers $helpers = null)
+    public function __construct(DBConnection $dbConnection = null)
     {
+        // If instance is not set, set it to this (so that first instance is the instance)
+        if (!isset(self::$instance))
+            self::$instance = $this;
+
         $this->sessionState = new SessionState('Framework');
 
         $backtrace = debug_backtrace();
+        
         $this->componentsRoot = dirname($backtrace[0]['file']);
-        if ($helpers == null)
-            $this->helpers = new Helpers($this->sessionState, $dbConnection, $this);
-        else
-            $this->helpers = $helpers;
 
         $this->dbConnection = $dbConnection;
 
 
         $this->handleRequestData();
-
-        if ($renderFunction != null)
-            $this->rootComponent = new Component($renderFunction, $this->helpers);
     }
 
     /**
@@ -55,6 +48,15 @@ class Framework
         if (substr($root, -1) != '/')
             $root .= '/';
         $this->componentsRoot = $root;
+    }
+
+    /**
+     * Sets the root component.
+     * @param string $componentPath
+     */
+    public function setRootComponent(string $componentPath)
+    {
+        $this->rootComponent = new Component($componentPath, $this);
     }
 
     /**
@@ -71,7 +73,8 @@ class Framework
 
             switch ($action) {
                 case 'callSpecialFunction':
-                    $this->helpers->__callSpecialFunction($requestData['specialFunctionID'], $requestData['args']);
+                    //$this->helpers->__callSpecialFunction($requestData['specialFunctionID'], $requestData['args']);
+                    throw new \Exception('Special functions are not implemented yet.');
                     break;
             }
         }
@@ -86,6 +89,8 @@ class Framework
 
         if ($this->rootComponent != null)
             echo $this->rootComponent->render();
+        else
+            throw new \Exception('Trying to render Framework while root component is not set.');
     }
 
     /**

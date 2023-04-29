@@ -30,6 +30,7 @@ class FileSystemRouter
     }
 
     public ?string $rootFilesystemPath = null;
+    public ?string $componentsRootPath = null;
 
     /**
      * @var Route[] $routes
@@ -46,7 +47,8 @@ class FileSystemRouter
     public function __construct(string $path, Framework $framework)
     {
         // This path is relative to the root component path
-        $this->rootFilesystemPath = Utils::fix_path($framework->componentsRoot . '/' . $path);
+        $this->rootFilesystemPath = Utils::fix_path($framework->componentsRoot . $path);
+        $this->componentsRootPath = $path;
         $this->framework = $framework;
 
         // Recurse folder and add to routes array
@@ -65,10 +67,11 @@ class FileSystemRouter
 
     /**
      * Sets the error component (when no other route matches - displayed inside the appropriate layouts)
+     * @param string $componentPath
      */
-    public function setErrorComponent($component)
+    public function setErrorComponent(string $componentPath)
     {
-        $this->errorComponent = new Component($component, $this->framework->getHelpers());
+        $this->errorComponent = new Component($componentPath, $this->framework);
     }
 
     /**

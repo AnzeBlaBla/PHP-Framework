@@ -11,7 +11,7 @@ enum ComponentState
     case Initialized;
     case Rendering;
     case Rendered;
-    case Updated;
+    //case Updated;
 }
 
 class Component
@@ -20,10 +20,10 @@ class Component
     static ?Component $lastRendered = null;
 
     private string $componentName;
-    private Closure $renderFunction;
+    private string $fileSystemPath;
     private Properties $props;
     private ?ComponentData $data = null;
-    private Helpers $helpers;
+    private Framework $framework;
 
     public ComponentState $state = ComponentState::Uninitialized;
 
@@ -31,38 +31,36 @@ class Component
     private $componentTreePath = [];
     public ?string $uniqueID = null;
 
-    public function markUpdated(): void
-    {
-        $this->state = ComponentState::Updated;
-    }
 
     /**
      * Component constructor.
-     * @param Closure|string $renderFunction
-     * @param Helpers $helpers
+     * @param string $componentPath
+     * @param Framework $framework
      * @param array $props
      * @param string|null $key
      */
-    public function __construct($renderFunction, $helpers = null, $props = [], $key = null)
+    public function __construct($componentPath, $framework = null, $props = [], $key = null)
     {
+        //echo "Constructing component $componentPath<br>";
+
         /* Set last constructed component */
         self::$lastConstructed = $this;
 
         $this->uniqueID = $key;
-        if ($helpers == null)
-            $helpers = new Helpers();
-        $this->helpers = $helpers;
 
-        /* Get component name (file name) using reflection */
-        $reflection = new ReflectionFunction($renderFunction);
+        /* Set framework to default instance if not set */
+        if ($framework == null)
+            $framework = Framework::getInstance();
+        $this->framework = $framework;
 
-        $fileName = $reflection->getFileName();
-        $fileName = str_replace('.php', '', $fileName);
-        $fileName = str_replace($helpers->framework->componentsRoot, '', $fileName);
-        $this->componentName = $fileName;
+        /* Set component name */
+        $this->componentName = $componentPath;
 
-        $this->renderFunction = $renderFunction;
+        //echo("Name: " . $this->componentName . " - Root: " . $this->framework->componentsRoot . "<br>");
 
+        $this->fileSystemPath = Utils::fix_path(($this->framework->componentsRoot ?? '') . $componentPath . '.php');
+
+        //echo "Final: " . $this->fileSystemPath . "<br>";
         /* Set component props */
         $this->props = new Properties($props);
 
@@ -72,6 +70,9 @@ class Component
 
     public function setProps($props)
     {
+        // We can only set props if component is not rendered yet
+        if ($this->state == ComponentState::Rendered || $this->state == ComponentState::Rendering)
+            throw new \Exception("Cannot set props on rendered component");
         $this->props = new Properties($props);
     }
 
@@ -81,6 +82,10 @@ class Component
      */
     public function render()
     {
+        // Must be in initialized state
+        if ($this->state != ComponentState::Initialized)
+            throw new \Exception("Component must be in initialized state to render");
+
         /* Set component state */
         $this->state = ComponentState::Rendering;
 
@@ -97,14 +102,19 @@ class Component
         self::$lastRendered = $this;
 
         /* Set component data (now that we know our ID) */
-        $this->data = new ComponentData($this->helpers->sessionState, $this);
+        $this->data = new ComponentData($this->framework->sessionState, $this);
 
         /* Call render function */
-        try {
-            $renderedComponent = $this->renderFunction->call($this, $this->helpers);
-        } catch (\Exception $e) {
+        /* try { */
+            ob_start();
+            $componentReturn = require($this->fileSystemPath);
+            $renderedComponent = ob_get_clean();
+
+            // TODO: use $componentReturn
+            //print_r($componentReturn);
+        /* } catch (\Exception $e) {
             $renderedComponent = "<div style='color: red;'>Error rendering component: {$e->getMessage()}</div>";
-        }
+        } */
 
         /* Set component state */
         $this->state = ComponentState::Rendered;
@@ -172,11 +182,75 @@ class Component
         $this->data->{$name} = $value;
     }
 
+    /* Helper functions */
+
+    /**
+     * Create another component
+     * @param string $componentPath
+     * @param array $props
+     * @param string|null $key
+     * @return Component
+     */
+    public function component($componentPath, $props = [], $key = null)
+    {
+        return new Component($componentPath, $this->framework, $props, $key);
+    }
+
+    /**
+     * Helper to create a file system router
+     * @param string $path
+     * @return FileSystemRouter
+     */
+    public function fileSystemRouter($path)
+    {
+        return new FileSystemRouter($path, $this->framework);
+    }
+
+    /**
+     * Helper for if statements
+     * @param bool|callable $condition
+     * @param string|callable $ifTrue
+     * @param string|callable $ifFalse
+     * @return mixed
+     */
+    public static function if($condition, $ifTrue, $ifFalse = '')
+    {
+        if (is_callable($condition)) {
+            $condition = $condition();
+        }
+        if ($condition) {
+            if (is_callable($ifTrue)) {
+                $ifTrue = $ifTrue();
+            }
+            return $ifTrue;
+        } else {
+            if (is_callable($ifFalse)) {
+                $ifFalse = $ifFalse();
+            }
+            return $ifFalse;
+        }
+    }
+
+    /**
+     * Helper for loops (maps array to string)
+     * @param array $array
+     * @param callable $function
+     * @return string
+     */
+    public static function map($array, $function)
+    {
+        $result = '';
+        foreach ($array as $key => $value) {
+            $result .= $function($value, $key);
+        }
+        return $result;
+    }
+
     /**
      * Debug function to get component tree location
      * @return string
      */
-    public function treeLocation()
+    public function _treeLocation()
     {
         return implode(' > ', $this->componentTreePath);
     }
