@@ -77,6 +77,16 @@ class Component
     }
 
     /**
+     * Ensures props are provided (and optionally, their types)
+     * @param array $props
+     * @throws \Exception
+     */
+    public function ensureProps(array $props)
+    {
+        $this->props->ensure($props);
+    }
+
+    /**
      * Render component
      * @return string|array
      */
