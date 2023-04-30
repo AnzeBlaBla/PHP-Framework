@@ -59,7 +59,7 @@ class Helpers
      */
     public function function($function)
     {
-        $ownerUniqueID = Component::$lastRendered ? Component::$lastRendered->uniqueID : 'root';
+        $ownerUniqueID = Component::$currentlyRendering ? Component::$currentlyRendering->uniqueID : 'root';
 
         $newFuncID = count($this->specialFunctions) + 1 . '_' . $ownerUniqueID;
         $newFunc = new SpecialFunction($function, $newFuncID);
@@ -72,7 +72,7 @@ class Helpers
             $this->functionArgs = [];
 
             // Mark component as updated
-            Component::$lastRendered->markUpdated();
+            Component::$currentlyRendering->markUpdated();
 
             $newFunc->call(...$args);
         }

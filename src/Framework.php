@@ -103,22 +103,26 @@ class Framework
     {
         $this->handleRequestData();
 
+        $renderBuffer = "";
 
-        echo $this->renderDependenciesHTML();
+        $renderBuffer .= $this->getDependenciesHTML();
 
         if ($this->rootComponent != null)
-            echo $this->rootComponent->render();
+            $renderBuffer .= $this->rootComponent->render();
         else
             throw new \Exception('Trying to render Framework while root component is not set.');
+
+        echo $renderBuffer;
     }
 
     /**
-     * Renders the dependencies HTML.
+     * Gets the dependencies HTML.
      * @return string
      */
-    public static function renderDependenciesHTML()
+    public static function getDependenciesHTML()
     {
-        include_once(__DIR__ . '/frontend.php');
+        //include_once(__DIR__ . '/frontend.php');
+        return file_get_contents(__DIR__ . '/frontend.html');
     }
 
 

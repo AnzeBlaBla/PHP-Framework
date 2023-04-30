@@ -140,6 +140,11 @@ class FileSystemRouter
      */
     public function runAPI()
     {
+        // Make sure framework no data has been sent yet
+        if (ob_get_contents()) {
+            throw new \Exception("Cannot run API, data has already been sent (make sure to run API before rendering the framework)");
+        }
+
         $rendered = $this->render();
         if ($rendered) {
             header('Content-Type: application/json');
@@ -244,6 +249,17 @@ class FileSystemRouter
         }
 
         return $routes;
+    }
+
+
+    /**
+     * Helper function for redirecting to a URL (for example for auth protection)
+     * @param string $url
+     */
+    public function redirect($url)
+    {
+        header("Location: " . $url);
+        die;
     }
 
 }

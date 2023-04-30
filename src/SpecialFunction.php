@@ -20,7 +20,7 @@ class SpecialFunction
     public function call(...$args)
     {
         // use last rendered component as context
-        $this->function->call(Component::$lastRendered, ...$args);
+        $this->function->call(Component::$currentlyRendering, ...$args);
     }
 
     public function __toString()

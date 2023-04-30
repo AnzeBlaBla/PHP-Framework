@@ -16,8 +16,10 @@ enum ComponentState
 
 class Component
 {
-    static ?Component $lastConstructed = null;
-    static ?Component $lastRendered = null;
+    // TODO: maybe move these 2 to framework, instead of being static
+    static ?Component $lastConstructed = null; // Last component on which constructor was called
+    static ?Component $currentlyRendering = null; // Last component that was rendered (really the one being currently rendered)
+    static int $currentChildCount = 0; // Current count of children being rendered (used for key generation)
 
     private string $componentName;
     private string $fileSystemPath;
@@ -28,6 +30,7 @@ class Component
     public ComponentState $state = ComponentState::Uninitialized;
 
     private ?Component $parentComponent = null;
+    private int $indexInParent = 0;
     private $componentTreePath = [];
     public ?string $uniqueID = null;
 
@@ -100,25 +103,46 @@ class Component
         $this->state = ComponentState::Rendering;
 
         /* Handle render tree related stuff */
-        $this->parentComponent = self::$lastRendered;
+        $this->parentComponent = self::$currentlyRendering;
+        if ($this->parentComponent != null)
+            $this->indexInParent = self::$currentChildCount;
+
         if ($this->parentComponent == null) {
-            $this->componentTreePath = [$this->componentName];
+            $this->componentTreePath = [$this->componentName . "-" . $this->indexInParent];
         } else {
-            $this->componentTreePath = array_merge($this->parentComponent->componentTreePath, [$this->componentName]);
+            $this->componentTreePath = array_merge($this->parentComponent->componentTreePath, [$this->componentName . "-" . $this->indexInParent]);
         }
         if ($this->uniqueID == null)
             $this->uniqueID = md5(implode($this->componentTreePath));
 
-        self::$lastRendered = $this;
+        self::$currentlyRendering = $this;
+        self::$currentChildCount = 0;
 
         /* Set component data (now that we know our ID) */
         $this->data = new ComponentData($this->framework->sessionState, $this);
 
         /* Call render function */
         try {
+
+            // Anon function rendering commented for optimization reasons, uncomment if needed
+            /* $renderFunc = function()
+            { */
+
             ob_start();
             $componentReturn = require($this->fileSystemPath);
             $renderedComponent = ob_get_clean();
+
+            /*       return [
+                    'componentReturn' => $componentReturn,
+                    'renderedComponent' => $renderedComponent
+                ];
+            };
+
+            $renderFunc = Closure::bind($renderFunc, $this);
+            $renderRes = $renderFunc->call($this);
+
+            $componentReturn = $renderRes['componentReturn'];
+            $renderedComponent = $renderRes['renderedComponent']; */
 
             //print_r($componentReturn);
         } catch (\Exception $e) {
@@ -129,7 +153,8 @@ class Component
         $this->state = ComponentState::Rendered;
 
         /* Handle render tree related stuff */
-        self::$lastRendered = $this->parentComponent;
+        self::$currentlyRendering = $this->parentComponent;
+        self::$currentChildCount = $this->indexInParent + 1;
 
         // If renderedComponent printed any data, consider it HTML
         if ($renderedComponent != '') {
@@ -156,7 +181,7 @@ class Component
                     ></framework-component>
                 HTML;
             }
-        // If a component returns an object, it's data
+            // If a component returns an object, it's data
         } else if (is_object($componentReturn) || is_array($componentReturn)) {
             //echo "Component is array<br>";
             // If renderedComponent is array, return it (used for API components that return JSON)
