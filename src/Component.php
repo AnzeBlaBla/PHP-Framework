@@ -246,6 +246,27 @@ class Component
     }
 
     /**
+     * Creates a portal.
+     * @param string $portalKey
+     * @return \AnzeBlaBla\Framework\Portal
+     */
+    public function createPortal(string $portalKey, $defaultContent)
+    {
+        return $this->framework->createPortal($portalKey, $defaultContent);
+    }
+
+    /**
+     * Gets a portal.
+     * @param string $portalKey
+     * @return \AnzeBlaBla\Framework\Portal
+     */
+    public function getPortal(string $portalKey)
+    {
+        return $this->framework->getPortal($portalKey);
+    }
+
+
+    /**
      * Helper for if statements
      * @param bool|callable $condition
      * @param string|callable $ifTrue

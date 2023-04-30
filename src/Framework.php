@@ -2,8 +2,6 @@
 
 namespace AnzeBlaBla\Framework;
 
-use Closure;
-
 class Framework
 {
     private static Framework $instance;
@@ -112,6 +110,11 @@ class Framework
         else
             throw new \Exception('Trying to render Framework while root component is not set.');
 
+        // Replace the portals
+        foreach ($this->portals as $portal) {
+            $renderBuffer = str_replace($portal->getPlaceholder(), $portal->getContent(), $renderBuffer);
+        }
+
         echo $renderBuffer;
     }
 
@@ -125,6 +128,49 @@ class Framework
         return file_get_contents(__DIR__ . '/frontend.html');
     }
 
+    /* Portals */
+
+    /**
+     * @var \AnzeBlaBla\Framework\Portal[] $portals
+     */
+    private array $portals = [];
+
+    /**
+     * Creates a portal.
+     * @param string $portalKey
+     * @return \AnzeBlaBla\Framework\Portal
+     */
+    public function createPortal(string $portalKey, mixed $defaultContent = null)
+    {
+        
+        if (isset($this->portals[$portalKey]))
+        {
+            //throw new \Exception('Portal with key "' . $portalKey . '" already exists.');
+            $portal = $this->portals[$portalKey];
+        } else {
+            $portal = new Portal($portalKey);
+        }
+        if ($defaultContent !== null)
+            $portal->setDefaultContent($defaultContent);
+        $this->portals[$portalKey] = $portal;
+        return $portal;
+    }
+
+    /**
+     * Gets a portal.
+     * @param string $portalKey
+     * @return \AnzeBlaBla\Framework\Portal
+     */
+    public function getPortal(string $portalKey)
+    {
+        if (!isset($this->portals[$portalKey]))
+        {
+            // throw new \Exception('Portal with key "' . $portalKey . '" does not exist.');
+            return $this->createPortal($portalKey);
+        }
+            
+        return $this->portals[$portalKey];
+    }
 
 
     /* Helpers */
