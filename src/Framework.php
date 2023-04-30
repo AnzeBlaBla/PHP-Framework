@@ -13,6 +13,7 @@ class Framework
     }
 
     public static RenderMode $renderMode = RenderMode::Raw;
+    public static string $HEAD_PORTAL = 'head';
 
     private Component $rootComponent;
     public SessionState $sessionState;
@@ -103,7 +104,9 @@ class Framework
 
         $renderBuffer = "";
 
-        $renderBuffer .= $this->getDependenciesHTML();
+        $depsHTML = $this->getDependenciesHTML();
+        $this->getPortal(self::$HEAD_PORTAL)->append($depsHTML);
+        
 
         if ($this->rootComponent != null)
             $renderBuffer .= $this->rootComponent->render();
@@ -114,6 +117,10 @@ class Framework
         foreach ($this->portals as $portal) {
             $renderBuffer = str_replace($portal->getPlaceholder(), $portal->getContent(), $renderBuffer);
         }
+
+        // if there was no head portal, just print the dependencies
+        if (!isset($this->portals[self::$HEAD_PORTAL]))
+            $renderBuffer = $depsHTML . $renderBuffer;
 
         echo $renderBuffer;
     }
@@ -134,6 +141,15 @@ class Framework
      * @var \AnzeBlaBla\Framework\Portal[] $portals
      */
     private array $portals = [];
+
+    /**
+     * Creates the head portal.
+     * @return \AnzeBlaBla\Framework\Portal
+     */
+    public function createHeadPortal()
+    {
+        return $this->createPortal(self::$HEAD_PORTAL);
+    }
 
     /**
      * Creates a portal.

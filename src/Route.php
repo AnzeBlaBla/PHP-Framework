@@ -102,7 +102,7 @@ class Route
         $props = [
             'query' => $query,
             'router' => $this->router,
-            'route' => $this
+            'route' => $this->router->currentRoute,
         ];
  
         // For layouts
@@ -209,6 +209,9 @@ class Route
     {
         $newRoute = new Route($newUrl, $this->router);
         $this->rewritten = true;
+
+        $this->router->currentRoute = $newRoute;
+
         return $newRoute->render($this->renderedUrl, $this->renderedQuery);
     }
 
@@ -220,6 +223,14 @@ class Route
     }
 
 
+    /**
+     * Getter for urlPath
+     * @return string
+     */
+    public function path(): string
+    {
+        return $this->urlPath;
+    }
 
     public static function getURLPathFromPath(string $path): string
     {

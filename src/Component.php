@@ -49,6 +49,10 @@ class Component
         /* Set last constructed component */
         self::$lastConstructed = $this;
 
+        // key must start with letter
+        if ($key != null && !preg_match('/^[a-zA-Z]/', $key))
+            throw new \Exception("Key must start with a letter");
+
         $this->uniqueID = $key;
 
         /* Set framework to default instance if not set */
@@ -113,7 +117,10 @@ class Component
             $this->componentTreePath = array_merge($this->parentComponent->componentTreePath, [$this->componentName . "-" . $this->indexInParent]);
         }
         if ($this->uniqueID == null)
-            $this->uniqueID = md5(implode($this->componentTreePath));
+        {
+            // We add a 'c' to make sure it starts with a letter (otherwise css selectors break)
+            $this->uniqueID = 'c' . md5(implode($this->componentTreePath)); 
+        }
 
         self::$currentlyRendering = $this;
         self::$currentChildCount = 0;
@@ -190,7 +197,7 @@ class Component
             // If renderedComponent is neither string nor array, it's an error
             //Utils::debug_print($renderedComponent);
             //Utils::debug_print($componentReturn);
-            return "<div style='color: red;'>Error rendering component: Invalid return type</div>";
+            return "<div style='color: red;'>Error rendering component: Invalid return type (must be NON-EMPTY string or array)</div>";
         }
     }
 
@@ -250,7 +257,7 @@ class Component
      * @param string $portalKey
      * @return \AnzeBlaBla\Framework\Portal
      */
-    public function createPortal(string $portalKey, $defaultContent)
+    public function createPortal(string $portalKey, $defaultContent = null)
     {
         return $this->framework->createPortal($portalKey, $defaultContent);
     }
@@ -305,6 +312,16 @@ class Component
         }
         return $result;
     }
+
+    /**
+     * Helper to get unique ID
+     * @return string
+     */
+    public function id()
+    {
+        return $this->uniqueID;
+    }
+
 
     /**
      * Debug function to get component tree location

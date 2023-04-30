@@ -40,7 +40,7 @@ class Portal
 
     public function getContent(): string
     {
-        return $this->content;
+        return $this->content ?? ''; // TODO: maybe shouldn't always be a string
     }
 
     public function set(string $content, bool $allowOtherSet = false): Portal

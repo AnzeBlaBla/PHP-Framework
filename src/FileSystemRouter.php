@@ -46,6 +46,8 @@ class FileSystemRouter
     private ?Component $errorComponent = null; // Error component is displayed when no other route matches (inside the appropriate layouts)
     public ?Framework $framework = null;
 
+    public Route $currentRoute; // Current route is the route that is currently being rendered (the deepest route that matches the url)
+
     /**
      * @param string $path
      * @param Framework $framework
@@ -131,6 +133,8 @@ class FileSystemRouter
                 throw new \Exception("No route found for URL: " . $url);
             }
         }
+
+        $this->currentRoute = $routeToRender;
 
         return $routeToRender->render($url, $query);
     }
