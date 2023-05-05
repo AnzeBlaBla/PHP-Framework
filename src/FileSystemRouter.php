@@ -4,6 +4,9 @@ namespace AnzeBlaBla\Framework;
 
 class FileSystemRouter
 {
+    /**
+     * URL prefix, starting with / and ending with /
+     */
     private string $prefix = '';
     public function setPrefix(string $prefix)
     {
@@ -18,7 +21,9 @@ class FileSystemRouter
 
         return $this;
     }
-
+    /**
+     * Prefix for files that should be ignored (default: '_')
+     */
     public string $ignoreFilePrefix = '_';
     public function setIgnoreFilePrefix(string $prefix)
     {
@@ -27,6 +32,9 @@ class FileSystemRouter
         return $this;
     }
 
+    /**
+     * Layout file name (default: '#layout.php')
+     */
     public string $layoutFileName = '#layout.php';
     public function setLayoutFileName(string $name)
     {
@@ -35,15 +43,25 @@ class FileSystemRouter
         return $this;
     }
 
+    /**
+     * Index file name (default: 'index.php')
+     */
+    public string $indexFilename = 'index.php';
+    public function setIndexFilename(string $name)
+    {
+        $this->indexFilename = $name;
+
+        return $this;
+    }
+
     public ?string $rootFilesystemPath = null;
     public ?string $componentsRootPath = null;
 
     /**
-     * @var Route[] $routes
+     * Recursive array of routes
      */
     private $routes = array();
     private ?Route $errorRoute = null; // Error route is displayed when no other route matches
-    private ?Component $errorComponent = null; // Error component is displayed when no other route matches (inside the appropriate layouts)
     public ?Framework $framework = null;
 
     public Route $currentRoute; // Current route is the route that is currently being rendered (the deepest route that matches the url)
@@ -62,6 +80,7 @@ class FileSystemRouter
         // Recurse folder and add to routes array
         $this->routes = $this->getRoutesFromFolder($this->rootFilesystemPath);
 
+        //Utils::debug_print($this->routes);
     }
 
     /**
@@ -76,17 +95,6 @@ class FileSystemRouter
         return $this;
     }
 
-    /**
-     * Sets the error component (when no other route matches - displayed inside the appropriate layouts)
-     * @param string $componentPath
-     * @return \AnzeBlaBla\Framework\FileSystemRouter
-     */
-    public function setErrorComponent(string $componentPath)
-    {
-        $this->errorComponent = new Component($componentPath, $this->framework);
-
-        return $this;
-    }
 
     /**
      * Router render method
@@ -98,36 +106,25 @@ class FileSystemRouter
         // remove whole prefix
         if (substr($url, 0, strlen($this->prefix)) == $this->prefix) {
             $url = substr($url, strlen($this->prefix));
-        // Or if url is just prexix (can be without trailing slash)
+            // Or if url is just prexix (can be without trailing slash)
         } else if ($url == $this->prefix || $url == substr($this->prefix, 0, -1)) {
             $url = ''; // empty string (root
         } else {
+            // If url does not start with prefix, do not render
             return null;
         }
         // URL needs to start with /
         if (substr($url, 0, 1) != '/') {
             $url = '/' . $url;
         }
-        
+
         $queryString = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY) ?? '';
         parse_str($queryString, $query); // Parse query string into array
 
         $routeToRender = $this->findRoute($url);
 
         if ($routeToRender == null) {
-            //echo "<h1>Printing error</h1>";
-            //$routeToRender = $this->errorRoute;
-
-            // Both error component and error route cannot be set
-            if ($this->errorComponent != null && $this->errorRoute != null) {
-                throw new \Exception("Only use setErrorComponent or setErrorRoute, not both");
-            }
-
-            // If error component is set, use that
-            if ($this->errorComponent != null) {
-                // Render error component with the correct layouts
-                throw new \Exception("Error components not implemented yet!");
-            } else if ($this->errorRoute != null) {
+            if ($this->errorRoute != null) {
                 $routeToRender = $this->errorRoute;
             } else {
                 throw new \Exception("No route found for URL: " . $url);
@@ -161,10 +158,8 @@ class FileSystemRouter
      * @param string $url
      * @return Route|null
      */
-    public function findRoute($url): ?Route
-    {        
-        $tryURLs = [$url];
-
+    public function findRoute(string $url): ?Route
+    {
         /* // if ends with /, remove it
         if (substr($url, -1) == '/') {
             $tryURLs[] = substr($url, 0, -1);
@@ -174,42 +169,45 @@ class FileSystemRouter
         if (substr($url, -1) != '/') {
             $tryURLs[] = $url . '/';
         } */
+        $urlParts = explode('/', $url);
 
-        $matches = array();
+        return $this->recursiveFindRoute($urlParts, $this->routes);
+    }
 
-        foreach ($tryURLs as $tryURL) {
-            foreach ($this->routes as $route) {
-                if ($route->matches($tryURL)) {
-                    $matches[] = $route;
-                }
+    /**
+     * @param string $url
+     * @param RouteItem $routes
+     * @return Route|null
+     */
+    public function recursiveFindRoute(array $urlParts, RouteItem $routeItem): ?Route
+    {
+        $firstURLPart = $urlParts[0];
+
+        // If there is a route with this name
+        $subItem = $routeItem->getItem($firstURLPart);
+
+        if (!$subItem)
+        {
+            // If there is a dynamic route
+            if ($routeItem->dynamicRoute) {
+                $subItem = $routeItem->dynamicRoute;
+            } else {
+                return null;
             }
         }
 
-        if (count($matches) > 1) {
-            
-            // If there is only one non-dynamic, use that one
-            /**
-             * @var Route[] $nonDynamicMatches
-             * @var Route[] $matches
-             * @param Route $route
-            */
-            
-            $nonDynamicMatches = array_values(array_filter($matches, function ($route) {
-                return !$route->isDynamic();
-            }));
-
-            if (count($nonDynamicMatches) == 1) {
-                return $nonDynamicMatches[0];
+        // If there are more url parts, recurse
+        if (count($urlParts) > 1) {
+            return $this->recursiveFindRoute(array_slice($urlParts, 1), $subItem);
+        } else {
+            // If there are no more url parts
+            if ($subItem instanceof Route) {
+                return $subItem;
+            } else {
+                // Try to find index
+                return $subItem->getItem('index');
             }
-
-            throw new \Exception("Multiple routes match the URL: " . $url . " (" . count($matches) . " matches)");
         }
-
-        if (count($matches) == 1) {
-            return $matches[0];
-        }
-
-        return null;
     }
 
     /* Default string conversion */
@@ -221,12 +219,12 @@ class FileSystemRouter
 
     /**
      * @param string $path
-     * @return Route[]
+     * @return RouteItem
      */
     public function getRoutesFromFolder($path)
     {
         $relativePath = substr($path, strlen($this->rootFilesystemPath));
-        $routes = array();
+        $routes = new RouteItem($relativePath, $this);
 
         // Get all files and folders in the path
         $files = scandir($path);
@@ -242,13 +240,16 @@ class FileSystemRouter
             if (substr($file, 0, strlen($this->ignoreFilePrefix)) == $this->ignoreFilePrefix) {
                 continue;
             }
-            
+
             // If it's a folder, recurse
             if (is_dir($path . "/" . $file)) {
-                $routes = array_merge($routes, $this->getRoutesFromFolder($path . "/" . $file));
+                // If starts with '[' and ends with ']', it's a dynamic route
+                $routeItem = $this->getRoutesFromFolder($path . "/" . $file);
+                $routes->addItem($file, $routeItem);
             } else {
                 // If it's a file, add it to the routes array
-                $routes[] = new Route($relativePath . "/" . $file, $this);
+                $route = new Route($relativePath . "/" . $file, $this);
+                $routes->addItem($file, $route);
             }
         }
 
@@ -265,5 +266,4 @@ class FileSystemRouter
         header("Location: " . $url);
         die;
     }
-
 }

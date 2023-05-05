@@ -10,7 +10,6 @@ class Portal
 
     private bool $contentSet = false;
     private bool $allowSet = true;
-    private bool $exceptionOnSet = false;
     
     function __construct(private string $portalKey)
     {
@@ -31,13 +30,6 @@ class Portal
         return $this;
     }
 
-    /* public function setExceptionOnSet(bool $exceptionOnSet = true): Portal
-    {
-        $this->exceptionOnSet = $exceptionOnSet;
-
-        return $this;
-    } */
-
     public function getContent(): string
     {
         return $this->content ?? ''; // TODO: maybe shouldn't always be a string
@@ -45,22 +37,11 @@ class Portal
 
     public function set(string $content, bool $allowOtherSet = false): Portal
     {
-        /* echo json_encode([
-            'portalKey' => $this->portalKey,
-            'content' => $content,
-            'allowOtherSet' => $allowOtherSet,
-            'contentSet' => $this->contentSet,
-            'allowSet' => $this->allowSet,
-            'exceptionOnSet' => $this->exceptionOnSet,
-        ]); */
 
         if ($this->contentSet && !$this->allowSet)
         {
-            // If wanted, throw an exception, otherwise just do nothing
-            if ($this->exceptionOnSet)
-                throw new \Exception("Portal {$this->portalKey} already set");
-            else
-                return $this;
+            // Do nothing
+            return $this;
         }
 
         $this->content = $content;

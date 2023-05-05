@@ -2,28 +2,20 @@
 
 namespace AnzeBlaBla\Framework;
 
-class Route
+class Route extends RouteItem
 {
-    private ?string $urlPath = null;
-    public Component $component;
-    private ?FileSystemRouter $router = null;
-    private bool $dynamic = false;
-    public function isDynamic(): bool
-    {
-        return $this->dynamic;
-    }
+    
+    public Component $component;    
 
     public bool $isLayout = false; // Layouts cannot be visited directly
 
     public function __construct(string $path, FileSystemRouter $router)
     {
+        parent::__construct($path, $router);
+
         if ($path == '') {
             throw new \Exception('Route path cannot be empty');
         }
-
-        $this->urlPath = Route::getURLPathFromPath($path);
-        $this->router = $router;
-
 
         $componentPath = $router->componentsRootPath . '/' . $path;
         // Check if this is a layout
@@ -37,17 +29,8 @@ class Route
         }
 
         
-        $this->component = new Component($componentPath, $this->router->framework);
+        $this->component = new Component($componentPath, $router->framework);
 
-
-        // Decide if this is dynamic route (contains [ and ] in one of the url parts)
-        $urlParts = explode('/', $this->urlPath);
-        foreach ($urlParts as $urlPart) {
-            if (substr($urlPart, 0, 1) == '[' && substr($urlPart, -1) == ']') {
-                $this->dynamic = true;
-                break;
-            }
-        }
     }
 
     public function matches(string $url)
@@ -93,7 +76,7 @@ class Route
         $this->renderedUrl = $url;
         $this->renderedQuery = $query;
 
-        //echo "Rendering route: " . $this->urlPath . " for url: " . $url . "<br>";
+        echo "Rendering route: " . $this->path . " (" . $this->urlPath . ") for url: " . $url . "<br>";
         
         $queryFromURL = $this->extractDataFromURL($url);
         $query = array_merge($query, $queryFromURL);
@@ -220,47 +203,5 @@ class Route
     public function __toString()
     {
         return "Error: Route to string conversion is not possible.";
-    }
-
-
-    /**
-     * Getter for urlPath
-     * @return string
-     */
-    public function path(): string
-    {
-        return $this->urlPath;
-    }
-
-    public static function getURLPathFromPath(string $path): string
-    {
-        $urlPath = $path;
-
-        // Remove .php extension
-        if (substr($urlPath, -4) == '.php') {
-            $urlPath = substr($urlPath, 0, -4);
-        }
-
-        // Remove index from the end
-        if (substr($urlPath, -5) == 'index') {
-            $urlPath = substr($urlPath, 0, -5);
-        }
-
-        // Remove trailing slash
-        if (substr($urlPath, -1) == '/') {
-            $urlPath = substr($urlPath, 0, -1);
-        }
-
-        // Add leading slash
-        if (substr($urlPath, 0, 1) != '/') {
-            $urlPath = '/' . $urlPath;
-        }
-
-        /* // if only /, then make it empty
-        if ($urlPath == '/') {
-            $urlPath = '';
-        } */
-
-        return $urlPath;
-    }
+    }    
 }

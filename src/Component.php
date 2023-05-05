@@ -2,9 +2,6 @@
 
 namespace AnzeBlaBla\Framework;
 
-use ReflectionFunction;
-use Closure;
-
 enum ComponentState
 {
     case Uninitialized;
@@ -24,7 +21,6 @@ class Component
     private string $componentName;
     private string $fileSystemPath;
     private Properties $props;
-    private ?ComponentData $data = null;
     private Framework $framework;
 
     public ComponentState $state = ComponentState::Uninitialized;
@@ -125,35 +121,14 @@ class Component
         self::$currentlyRendering = $this;
         self::$currentChildCount = 0;
 
-        /* Set component data (now that we know our ID) */
-        $this->data = new ComponentData($this->framework->sessionState, $this);
-
         /* Call render function */
         try {
 
-            // Anon function rendering commented for optimization reasons, uncomment if needed
-            /* $renderFunc = function()
-            { */
-
             ob_start();
-            $componentReturn = require($this->fileSystemPath);
-            $renderedComponent = ob_get_clean();
-
-            /*       return [
-                    'componentReturn' => $componentReturn,
-                    'renderedComponent' => $renderedComponent
-                ];
-            };
-
-            $renderFunc = Closure::bind($renderFunc, $this);
-            $renderRes = $renderFunc->call($this);
-
-            $componentReturn = $renderRes['componentReturn'];
-            $renderedComponent = $renderRes['renderedComponent']; */
-
-            //print_r($componentReturn);
+            $componentReturn = require $this->fileSystemPath;
+            $componentHTML = ob_get_clean();
         } catch (\Exception $e) {
-            $renderedComponent = "<div style='color: red;'>Error rendering component: {$e->getMessage()}</div>";
+            $componentHTML = "<div style='color: red;'>Error rendering component: {$e->getMessage()}</div>";
         }
 
         /* Set component state */
@@ -163,41 +138,14 @@ class Component
         self::$currentlyRendering = $this->parentComponent;
         self::$currentChildCount = $this->indexInParent + 1;
 
-        // If renderedComponent printed any data, consider it HTML
-        if ($renderedComponent != '') {
-            //echo "Component is string<br>";
-            //Utils::debug_print($renderedComponent);
-            if (Framework::$renderMode == RenderMode::Raw) {
-                return <<<HTML
+        if ($componentHTML != '') {
+            return <<<HTML
                     <!--$this->uniqueID-->
-                    {$renderedComponent}
+                    {$componentHTML}
                     <!--$this->uniqueID-->
                 HTML;
-            } else if (Framework::$renderMode == RenderMode::WebComponent) {
-                return <<<HTML
-                
-                    <template id="template-{$this->uniqueID}">
-                        <!--$this->uniqueID-->
-                        {$renderedComponent}
-                        <!--$this->uniqueID-->
-                    </template>
-    
-                    <framework-component
-                        uniqueid="{$this->uniqueID}"
-                        component="{$this->componentName}"
-                    ></framework-component>
-                HTML;
-            }
-            // If a component returns an object, it's data
-        } else if (is_object($componentReturn) || is_array($componentReturn)) {
-            //echo "Component is array<br>";
-            // If renderedComponent is array, return it (used for API components that return JSON)
-            return $componentReturn;
         } else {
-            // If renderedComponent is neither string nor array, it's an error
-            //Utils::debug_print($renderedComponent);
-            //Utils::debug_print($componentReturn);
-            return "<div style='color: red;'>Error rendering component: Invalid return type (must be NON-EMPTY string or array)</div>";
+            return $componentReturn;
         }
     }
 
@@ -207,28 +155,7 @@ class Component
         return $this->render();
     }
 
-    /* Getters and setters */
-    public function __get($name)
-    {
-        //echo "getting $name";
-        //print_r($this->data);
-        if ($this->data == null) {
-            throw new \Exception("Trying to get property of component before it was rendered (in component {$this->componentName})");
-        }
-        return $this->data->{$name};
-    }
-
-    public function __set($name, $value)
-    {
-        //echo "setting $name";
-        //print_r($this->data);
-        if ($this->data == null) {
-            throw new \Exception("Trying to set property of component before it was rendered (in component {$this->componentName})");
-        }
-        $this->data->{$name} = $value;
-    }
-
-    /* Helper functions */
+# Helper functions
 
     /**
      * Create another component
@@ -242,35 +169,6 @@ class Component
         return new Component($componentPath, $this->framework, $props, $key);
     }
 
-    /**
-     * Helper to create a file system router
-     * @param string $path
-     * @return FileSystemRouter
-     */
-    public function fileSystemRouter($path)
-    {
-        return $this->framework->fileSystemRouter($path);
-    }
-
-    /**
-     * Creates a portal.
-     * @param string $portalKey
-     * @return \AnzeBlaBla\Framework\Portal
-     */
-    public function createPortal(string $portalKey, $defaultContent = null)
-    {
-        return $this->framework->createPortal($portalKey, $defaultContent);
-    }
-
-    /**
-     * Gets a portal.
-     * @param string $portalKey
-     * @return \AnzeBlaBla\Framework\Portal
-     */
-    public function getPortal(string $portalKey)
-    {
-        return $this->framework->getPortal($portalKey);
-    }
 
 
     /**
@@ -321,6 +219,8 @@ class Component
     {
         return $this->uniqueID;
     }
+
+#endregion
 
 
     /**
