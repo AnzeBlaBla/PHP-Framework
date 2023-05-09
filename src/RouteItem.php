@@ -7,75 +7,39 @@ namespace AnzeBlaBla\Framework;
  */
 class RouteItem
 {
-    /**
-     * @var RouteItem[]
-     */
-    private array $subItems = [];
-    public ?RouteItem $dynamicRoute = null;
     public string $path;
 
-    private ?FileSystemRouter $router = null;
+    protected ?FileSystemRouter $router = null;
 
-    private bool $dynamic = false;
+    protected bool $dynamic = false;
     public function isDynamic(): bool
     {
         return $this->dynamic;
     }
 
-    private ?string $urlPath = null;
+    protected ?string $urlPath = null;
 
     public function __construct(string $path, FileSystemRouter $router)
     {
+        //echo "RouteItem construct: $path<br>";
         $this->path = $path;
         $this->router = $router;
 
         $this->urlPath = self::getURLPathFromPath($path);
 
-        print $this->path . " to url " . $this->urlPath . "<br>";
+        //print $this->path . " to url " . $this->urlPath . "<br>";
 
         // Decide if this is dynamic route (contains [ and ] in the last part of the path)
-         $urlParts = explode('/', $this->urlPath);
+        $urlParts = explode('/', $this->path);
 
         if (count($urlParts) > 0) {
             $lastURLPart = $urlParts[count($urlParts) - 1];
             if (substr($lastURLPart, 0, 1) == '[' && substr($lastURLPart, -1) == ']') {
+                //Utils::debug_print("Dynamic route: ", $this->path);
                 $this->dynamic = true;
             }
         }
-        /* foreach ($urlParts as $urlPart) {
-            if (substr($urlPart, 0, 1) == '[' && substr($urlPart, -1) == ']') {
-                $this->dynamic = true;
-                break;
-            }
-        } */
     }
-
-    public function addItem(string $name, RouteItem $item)
-    {
-        $this->subItems[$name] = $item;
-
-        if ($item->isDynamic()) {
-            if ($this->dynamicRoute) {
-                throw new \Exception('Multiple dynamic routes for route ' . $this->path . ' (' . $this->dynamicRoute->path . ' and ' . $item->path . ')');
-            }
-
-            $this->dynamicRoute = $item;
-        }
-    }
-
-    public function getItem(string $path): ?RouteItem
-    {
-        if (isset($this->subItems[$path])) {
-            return $this->subItems[$path];
-        }
-
-        return null;
-    }
-
-    public function hasSubroutes(): bool
-    {
-        return count($this->subItems) > 0;
-    }    
 
     public static function getURLPathFromPath(string $path): string
     {
@@ -108,4 +72,5 @@ class RouteItem
 
         return $urlPath;
     }
+
 }

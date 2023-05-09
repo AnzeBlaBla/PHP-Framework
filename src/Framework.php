@@ -100,7 +100,6 @@ class Framework
      */
     public static function getDependenciesHTML()
     {
-        //include_once(__DIR__ . '/frontend.php');
         return file_get_contents(__DIR__ . '/frontend.html');
     }
 

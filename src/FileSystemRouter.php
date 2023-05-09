@@ -33,12 +33,12 @@ class FileSystemRouter
     }
 
     /**
-     * Layout file name (default: '#layout.php')
+     * Layout route name (default: '#layout')
      */
-    public string $layoutFileName = '#layout.php';
-    public function setLayoutFileName(string $name)
+    public string $layoutName = '#layout';
+    public function setLayoutName(string $name)
     {
-        $this->layoutFileName = $name;
+        $this->layoutName = $name;
 
         return $this;
     }
@@ -46,10 +46,10 @@ class FileSystemRouter
     /**
      * Index file name (default: 'index.php')
      */
-    public string $indexFilename = 'index.php';
-    public function setIndexFilename(string $name)
+    public string $indexRoute = 'index';
+    public function setIndexRoute(string $name)
     {
-        $this->indexFilename = $name;
+        $this->indexRoute = $name;
 
         return $this;
     }
@@ -90,7 +90,7 @@ class FileSystemRouter
      */
     public function setErrorRoute($path)
     {
-        $this->errorRoute = new Route($path . ".php", $this);
+        $this->errorRoute = $this->findRoute($path);
 
         return $this;
     }
@@ -121,19 +121,30 @@ class FileSystemRouter
         $queryString = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY) ?? '';
         parse_str($queryString, $query); // Parse query string into array
 
-        $routeToRender = $this->findRoute($url);
+        //Utils::debug_print("Rendering URL: ", $url, " - Query: ", $query);
+
+        /**
+         * @var Route[] $layouts
+         */
+        $layouts = [];
+        $routeToRender = $this->findRoute($url, $query, $layouts);
+        // Reverse layouts
+        $layouts = array_reverse($layouts);
+
+        //Utils::debug_print("Route to render: ", $routeToRender);
 
         if ($routeToRender == null) {
-            if ($this->errorRoute != null) {
-                $routeToRender = $this->errorRoute;
-            } else {
-                throw new \Exception("No route found for URL: " . $url);
-            }
+            throw new \Exception("No route found for URL: " . $url);
         }
-
         $this->currentRoute = $routeToRender;
 
-        return $routeToRender->render($url, $query);
+        $renderedRoute = $routeToRender->render($url, $query);
+        // Apply layouts
+        foreach ($layouts as $layout) {
+            $renderedRoute = $layout->render($url, $query, $renderedRoute);
+        }
+
+        return $renderedRoute;
     }
 
     /**
@@ -158,7 +169,7 @@ class FileSystemRouter
      * @param string $url
      * @return Route|null
      */
-    public function findRoute(string $url): ?Route
+    public function findRoute(string $url, array &$query = [], array &$layouts = []): ?Route
     {
         /* // if ends with /, remove it
         if (substr($url, -1) == '/') {
@@ -169,9 +180,41 @@ class FileSystemRouter
         if (substr($url, -1) != '/') {
             $tryURLs[] = $url . '/';
         } */
-        $urlParts = explode('/', $url);
 
-        return $this->recursiveFindRoute($urlParts, $this->routes);
+        $urlParts = explode('/', $url);
+        // Remove first empty part
+        if ($urlParts[0] == '') {
+            array_shift($urlParts);
+        }
+        // if path is / make it empty array
+        if (count($urlParts) == 1 && $urlParts[0] == '') {
+            $urlParts = array();
+        }
+        //Utils::debug_print("Finding route for url: ", $url);
+        $foundRoute = $this->recursiveFindRoute($urlParts, $this->routes, $query, $layouts);
+        //Utils::debug_print("Found route 1: " . $foundRoute->path, $query);
+        // If route folder, try to return index
+        if ($foundRoute instanceof RouteFolder) {
+            //Utils::debug_print("Found route item: ", $foundRoute);
+            $foundRoute = $foundRoute->getItem($this->indexRoute);
+        }
+
+        //Utils::debug_print("Found route: ", $foundRoute);
+
+        // Error if null
+        if ($foundRoute == null) {
+            //Utils::debug_print("No route found for url: ", $url);
+            if ($this->errorRoute) {
+                //Utils::debug_print("Returning error route: ", $this->errorRoute);
+                return $this->errorRoute;
+            } else {
+                return null;
+            }
+        }
+        //Utils::debug_print("Found route 2: " . $foundRoute->path, $query);
+
+
+        return $foundRoute;
     }
 
     /**
@@ -179,34 +222,45 @@ class FileSystemRouter
      * @param RouteItem $routes
      * @return Route|null
      */
-    public function recursiveFindRoute(array $urlParts, RouteItem $routeItem): ?Route
+    public function recursiveFindRoute(array $urlParts, ?RouteItem $routeItem, array &$query, array &$layouts): ?RouteItem
     {
-        $firstURLPart = $urlParts[0];
-
-        // If there is a route with this name
-        $subItem = $routeItem->getItem($firstURLPart);
-
-        if (!$subItem)
-        {
-            // If there is a dynamic route
-            if ($routeItem->dynamicRoute) {
-                $subItem = $routeItem->dynamicRoute;
-            } else {
-                return null;
+        if ($routeItem instanceof RouteFolder) {
+            if($routeItem->hasLayout)
+            {
+                $layouts[] = $routeItem->getLayout();
             }
         }
-
         // If there are more url parts, recurse
-        if (count($urlParts) > 1) {
-            return $this->recursiveFindRoute(array_slice($urlParts, 1), $subItem);
-        } else {
-            // If there are no more url parts
-            if ($subItem instanceof Route) {
-                return $subItem;
-            } else {
-                // Try to find index
-                return $subItem->getItem('index');
+        if (count($urlParts) > 0) {
+            // Must be a route folder
+            if (!$routeItem instanceof RouteFolder) {
+                return null;
             }
+
+            $firstURLPart = $urlParts[0];
+
+            // If there is a route with this name
+            $subItem = $routeItem->getItem($firstURLPart);
+            //Utils::debug_print("GotItem:", $routeItem, ":GotItem:", $urlParts, ":2GotItem:", $subItem, ":GotItem");
+
+            if (!$subItem) {
+                // If there is a dynamic route
+                if ($routeItem->dynamicRoute) {
+                    //Utils::debug_print("Using dynamic route: ", $routeItem->dynamicRoute);
+                    // add to query
+                    $dynamicRouteNoBrackets = substr($routeItem->dynamicRoute, 1, -1);
+                    $query[$dynamicRouteNoBrackets] = $firstURLPart;
+
+                    $subItem = $routeItem->getDynamicRoute();
+                }
+            }
+
+            //Utils::debug_print("Subitem:", $subItem, ":Subitem");
+
+            return $this->recursiveFindRoute(array_slice($urlParts, 1), $subItem, $query, $layouts);
+        } else {
+            //Utils::debug_print("Returning route item: ", $routeItem);
+            return $routeItem;
         }
     }
 
@@ -224,7 +278,9 @@ class FileSystemRouter
     public function getRoutesFromFolder($path)
     {
         $relativePath = substr($path, strlen($this->rootFilesystemPath));
-        $routes = new RouteItem($relativePath, $this);
+        $routes = new RouteFolder($relativePath, $this);
+
+        //Utils::debug_print("Getting routes from folder: " . $path . " - " . $relativePath);
 
         // Get all files and folders in the path
         $files = scandir($path);
@@ -246,10 +302,14 @@ class FileSystemRouter
                 // If starts with '[' and ends with ']', it's a dynamic route
                 $routeItem = $this->getRoutesFromFolder($path . "/" . $file);
                 $routes->addItem($file, $routeItem);
-            } else {
+            } else { // must be php file
+                if (substr($file, -4) != '.php') {
+                    continue;
+                }
+                $fileNoExt = substr($file, 0, -4);
                 // If it's a file, add it to the routes array
                 $route = new Route($relativePath . "/" . $file, $this);
-                $routes->addItem($file, $route);
+                $routes->addItem($fileNoExt, $route);
             }
         }
 
