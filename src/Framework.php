@@ -5,10 +5,18 @@ namespace AnzeBlaBla\Framework;
 class Framework
 {
     public static string $HEAD_PORTAL = 'head';
+    // Arbitrary string to identify framework requests
     public static string $FRAMEWORK_REQUEST_IDENTIFIER = 'framework_request_g8j484jsf';
 
     private Component $rootComponent;
     public $componentsRoot;
+
+    public bool $debugMode = false;
+    public function setDebugMode(bool $debugMode)
+    {
+        $this->debugMode = $debugMode;
+        return $this;
+    }
 
     public function __construct(string $componentsRoot = null, $rootComponent = null)
     {
@@ -35,13 +43,16 @@ class Framework
         $this->requestData = new RequestData();
 
         // Handle built-in framework-related requests
-        if (isset($this->requestData->json) && $this->requestData->json[self::$FRAMEWORK_REQUEST_IDENTIFIER] ?? null)
-        {
-            $action = $this->requestData->json['action'] ?? null;
+        if (isset($this->requestData->json)) {
+            $jsonData = $this->requestData->json;
+            if (!isset($jsonData['requestIdentifier']) || $jsonData['requestIdentifier'] != self::$FRAMEWORK_REQUEST_IDENTIFIER) {
+                return;
+            }
+            $action = $jsonData['action'] ?? null;
 
             switch ($action) {
                 case 'getComponent':
-                    $component = new Component($this->requestData['componentPath'], $this, $this->requestData['props'] ?? [], $this->requestData['key'] ?? null);
+                    $component = new Component($jsonData['componentPath'], $this, $jsonData['props'] ?? [], $jsonData['key'] ?? null);
                     $renderedComponent = $component->render();
                     if (is_string($renderedComponent)) {
                         echo $renderedComponent;
@@ -49,7 +60,7 @@ class Framework
                         header('Content-Type: application/json');
                         echo json_encode($renderedComponent);
                     }
-                    
+
                     die;
 
                     break;
@@ -71,18 +82,22 @@ class Framework
         if ($this->rootComponent != null)
             $renderBuffer .= $this->rootComponent->render();
         else
-            throw new \Exception('Trying to render Framework while root component is not set.');    
+            throw new \Exception('Trying to render Framework while root component is not set.');
 
 
         // Inject framework HTML (JS, CSS, etc.)
         $depsHTML = $this->getDependenciesHTML();
         // if there was no head portal, just print the dependencies
-        if (!isset($this->portals[self::$HEAD_PORTAL]))
-        {
-            $renderBuffer = $depsHTML . $renderBuffer;
-        }
-        else
-        {
+        if (!isset($this->portals[self::$HEAD_PORTAL])) {
+            // Try to find end of head
+            $headEnd = stripos($renderBuffer, '</head>');
+            if ($headEnd !== false) {
+                $renderBuffer = substr_replace($renderBuffer, $depsHTML, $headEnd, 0);
+            } else {
+                // If not end of head, just prepend
+                $renderBuffer = $depsHTML . $renderBuffer;
+            }
+        } else {
             $this->getPortal(self::$HEAD_PORTAL)->append($depsHTML);
         }
 
@@ -100,10 +115,21 @@ class Framework
      */
     public static function getDependenciesHTML()
     {
-        return file_get_contents(__DIR__ . '/frontend.html');
+        $outHTML = "";
+
+        $outHTML .= "
+        <script>
+            window.FrameworkData = {
+                requestIdentifier: '" . self::$FRAMEWORK_REQUEST_IDENTIFIER . "',
+            };
+        </script>
+        ";
+        $outHTML .= file_get_contents(__DIR__ . '/frontend.html');
+
+        return $outHTML;
     }
 
-#region Portals
+    #region Portals
 
     /**
      * @var \AnzeBlaBla\Framework\Portal[] $portals
@@ -155,9 +181,9 @@ class Framework
     }
 
 
-#endregion
+    #endregion
 
-#region Helpers
+    #region Helpers
 
     /**
      * Creates a router
@@ -168,9 +194,9 @@ class Framework
         return new FileSystemRouter($path, $this);
     }
 
-#endregion
+    #endregion
 
-#region Getters/Setters
+    #region Getters/Setters
 
     /**
      * Sets the root folder from where the framework will search for components.
@@ -199,5 +225,5 @@ class Framework
         return $this;
     }
 
-#endregion
+    #endregion
 }

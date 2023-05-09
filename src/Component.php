@@ -112,10 +112,9 @@ class Component
         } else {
             $this->componentTreePath = array_merge($this->parentComponent->componentTreePath, [$this->componentName . "-" . $this->indexInParent]);
         }
-        if ($this->uniqueID == null)
-        {
+        if ($this->uniqueID == null) {
             // We add a 'c' to make sure it starts with a letter (otherwise css selectors break)
-            $this->uniqueID = 'c' . md5(implode($this->componentTreePath)); 
+            $this->uniqueID = 'c' . md5(implode($this->componentTreePath));
         }
 
         self::$currentlyRendering = $this;
@@ -139,11 +138,11 @@ class Component
         self::$currentChildCount = $this->indexInParent + 1;
 
         if ($componentHTML != '') {
-            return <<<HTML
-                    <!--$this->uniqueID-->
-                    {$componentHTML}
-                    <!--$this->uniqueID-->
-                HTML;
+            if ($this->framework->debugMode) {
+                return "<!--START:$this->uniqueID-->{$componentHTML}<!--END:$this->uniqueID-->";
+            } else {
+                return $componentHTML;
+            }
         } else {
             return $componentReturn;
         }
@@ -155,7 +154,7 @@ class Component
         return $this->render();
     }
 
-# Helper functions
+    # Helper functions
 
     /**
      * Create another component
@@ -220,7 +219,7 @@ class Component
         return $this->uniqueID;
     }
 
-#endregion
+    #endregion
 
 
     /**
