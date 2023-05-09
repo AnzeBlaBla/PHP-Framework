@@ -52,8 +52,6 @@ class Component
         $this->uniqueID = $key;
 
         /* Set framework to default instance if not set */
-        if ($framework == null)
-            $framework = Framework::getInstance();
         $this->framework = $framework;
 
         /* Set component name */

@@ -181,6 +181,9 @@ class FileSystemRouter
             $tryURLs[] = $url . '/';
         } */
 
+        // URL decode the url
+        $url = urldecode($url);
+
         $urlParts = explode('/', $url);
         // Remove first empty part
         if ($urlParts[0] == '') {
